@@ -1,0 +1,48 @@
+From 5f4bc69621faa284e14232204258e90a6ab94dc7 Mon Sep 17 00:00:00 2001
+From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Fri, 14 Sep 2012 13:53:09 +0000
+Subject: [PATCH 17/26] Data: redesigned motions for NimbRo-OP
+
+---
+ Data/motion_4096.bin |  Bin 131072 -> 131072 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/Data/motion_4096.bin b/Data/motion_4096.bin
+index 754d8365277e1084f39d66fe56837ad0951ab518..2d52325d38a63b8c67e217a526d1a9cba829c6c6 100644
+GIT binary patch
+delta 1672
+zcmai!e@GN*7{}jtcHZ}S-kEL9MZ;QkCo`$+A|%ToW7zuR?vF~dJ?W1)3X`CYq_gaY
+zv73=_R|MU75E;ZF*B_=87o3q0(G>_*9C+lN!KtK02h|@ZR9?8fGwbe-%W5<1Ebq?u
+zJJ0v|%)3uCiqR<E%<+HiA!WoM&e0ThADiWoTs!x}#2n-KVu&vhTf|LHkl=D0gzupV
+z6*0xnV*`}o6CfA^>km(E>Ezt{>$rWUzUp)O>KS_4*>O*y#^DB|KAzvXQcZqw*^(ig
+z^-;@Mm0Ru-5c4~=K|jWS5EFWhx&RkoHokyAF$da23*RZ8@c{k}8?nc3B4=eRM$9wn
+zX~$49Z(K<jmf=eX;0TQB0X1%@6i(Mt|F0<Lc7X$0ElcP-)O~udUZ!T!x9F(a`i0OU
+z-1;Zp&7Ms93%DFI=?8o!P3d37--67e!FxQyTg3+~fEc_09p6Ac8_^#7Li8U!sAkLc
+zM_7+`ep)B50c+UfO?>tfiFl8Tpo5sD5RZoKy;5Hv-z|w<<1!F)HQdGd9JDTN9Scfo
+z@8o$!t<{Tt!}Nbn#XHEte4JoO<e3b+S+`~zx?vN#47sIs#2oZo)`Pr9bZG~Z1!~1F
+zJm{OCgYp%{^<&&AP$!vWGMr#PYt_Cx>4w}=7sJUJ3`boIU#A$x(iu{c{)<8mS#(h$
+zZM2NMZ)md>%`1+4i3(mp5=x#ahGiraVU6Moc#GS_uUwJJ8#n})*kbLGeu#~WYrGxj
+z@cT(<1M5Ps^efoM68>}QTTvrgnF5daw-M(7{UTXDl&bIdW)84H9T#ohR#qTGwd0D}
+z8}Jizh&>hM(1(fPu@67OLpCUu>K!aB8?g2$1*Q4%A+T{;N98cFhs;?xjQ?RJ+`=t#
+z2s};>8Cvz@q9FZALM(z6yhN*je(Nj$+DJ1Ao#UspY#4BOO~Di}xoP(DcCkzAbjsa^
+zy)YN=bbkp}!!WDY&TDJbun6$E{1GC7?|=s~z=Q+b4q!hZn>XsmwQfF!Q`iQU3@|(I
+zOaTJ?f%G5nY!%P>)7cv+CNh9I4I~L%#fy?aOcHn|JGf@;RtgimE8xB(bMq#GO!H0+
+ub$ar*zi5_XWfjh+y_VrGT9z0t>3@uYOv7dJmf5+9TEBZLTa2p)9r*;;!;AR<
+
+delta 950
+zcmaizO=uHA6vuaVcRn{C5?e@8nruo*EGR;RBDAE<q6dj6q7ek6L|f5Ar4;L>l*F%y
+z)uzx1i1y$iA{E6-3k5-hD8-5q^&phmgO`ez8gdW=CFpEwQY%q+;4SR@-v9mIo1J8m
+zB$MQEgTn$OU98G8%5}Y+A9l9QB=ieFKcx@$uWeK!VB!VW={fF`U0b4+y{Kda;SlrV
+zFQm+t)Ky%>Kg4Q)IhJFcP@(U5-0x{|NyajHg-onTTc}}Ilw+3f+DFAopPLwPjR(3w
+z5AP1Rm8;gHJQir>VP}X7Q~HTIp3u6d&l^3R2bXOC<>)nb7FIo#l@)EovRfIWyQ-e5
+z*jG%+pI9F~ZDQe|WE8<ut7-iajI$~hqa)}R>w#vscJfWcmsB!pt2RDYkay3z@d3+q
+z#iqUG@s?&I7?F&<bQ<kLN9erDwW{PvdI>FQl6pwv>YC&#stFo3Mad;5<m?ht34;L+
+z+#Yb3>(1jK#FNg}L_d+q9a1k%5{Hn0=jb+EAp1pmS&$L3h;Kt5%WDI0nLa=h<RAH>
+zzfSm&SVX=|=3zDehFYKpX$s0XkNS9aw8?M?vR)-s)W~Zo5vTuC$!rkVDls(f_5!Qf
+zp+6)UDKx|^_zl@3%$9ITjJ=3^(FBdLER2e8864rgX|H!9rIRTPP@Kisb~Q>hl;PR5
+zuj83eDv%&EbxPP|cAz$GkWHeU^gYSoG?vNhx`*oEiLu75Q=;;RUz&|*5=Z{ZOZ4}K
+wW*2~6=625}aOS4I2--K7)fM){+98`)qgnh*G8vw^FS`MMArD{F@9E&vPc}Q<?*IS*
+
+-- 
+1.7.9.5
+

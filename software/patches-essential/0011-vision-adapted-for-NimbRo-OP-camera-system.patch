@@ -1,0 +1,309 @@
+From f02c389f44f4d90af65c475c8251055e4398971c Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Tue, 24 Jul 2012 12:41:28 +0000
+Subject: [PATCH 11/26] vision: adapted for NimbRo-OP camera system
+
+Changes:
+ - do not flip camera images
+ - ColorFinder: implemented undistortion for wide-angle lens
+ - vision: use NAN to code "ball not present"
+ - config.ini: vision config
+ - Head: pgain tuning
+ - Kinematics: changed eye tilt offset angle
+---
+ Data/config.ini                       |   15 ++++++++++
+ Framework/include/ColorFinder.h       |    3 +-
+ Framework/include/Kinematics.h        |    2 +-
+ Framework/src/motion/modules/Head.cpp |   52 ++++++++++++++++++++-------------
+ Framework/src/vision/BallFollower.cpp |    3 +-
+ Framework/src/vision/BallTracker.cpp  |    6 ++--
+ Framework/src/vision/ColorFinder.cpp  |   32 +++++++++++++++++---
+ Linux/build/LinuxCamera.cpp           |    2 --
+ Linux/project/demo/main.cpp           |    4 ++-
+ 9 files changed, 86 insertions(+), 33 deletions(-)
+
+diff --git a/Data/config.ini b/Data/config.ini
+index 6a93cda..9b3b6a8 100644
+--- a/Data/config.ini
++++ b/Data/config.ini
+@@ -65,3 +65,18 @@ balance_ankle_roll_gain=1.000000
+ p_gain=30
+ i_gain=0
+ d_gain=0
++
++[Camera]
++Brightness=128
++Contrast=32
++Saturation=28
++Gain=255
++Exposure=1000
++
++[Find Color]
++hue=360
++hue_tolerance=8
++min_saturation=72
++min_value=10
++min_percent=0.030000
++max_percent=30.000000
+diff --git a/Framework/include/ColorFinder.h b/Framework/include/ColorFinder.h
+index b426c64..e610939 100644
+--- a/Framework/include/ColorFinder.h
++++ b/Framework/include/ColorFinder.h
+@@ -25,6 +25,7 @@ namespace Robot
+         Point2D m_center_point;
+ 
+         void Filtering(Image* img);
++		Point2D undistort(const Point2D& point);
+ 
+     public:
+         int m_hue;             /* 0 ~ 360 */
+@@ -47,7 +48,7 @@ namespace Robot
+         void SaveINISettings(minIni* ini);
+         void SaveINISettings(minIni* ini, const std::string &section);
+ 
+-        Point2D& GetPosition(Image* hsv_img);
++        Point2D GetPosition(Image* hsv_img);
+     };
+ }
+ 
+diff --git a/Framework/include/Kinematics.h b/Framework/include/Kinematics.h
+index 86e8b71..35c453e 100644
+--- a/Framework/include/Kinematics.h
++++ b/Framework/include/Kinematics.h
+@@ -23,7 +23,7 @@ namespace Robot
+ 
+ 	public:
+ 		static const double CAMERA_DISTANCE = 33.2; //mm
+-		static const double EYE_TILT_OFFSET_ANGLE = 40.0; //degree
++		static const double EYE_TILT_OFFSET_ANGLE = 0.0; //degree
+ 		static const double LEG_SIDE_OFFSET = 37.0; //mm
+ 		static const double THIGH_LENGTH = 93.0; //mm
+ 		static const double CALF_LENGTH = 93.0; //mm
+diff --git a/Framework/src/motion/modules/Head.cpp b/Framework/src/motion/modules/Head.cpp
+index 292eea3..6119584 100644
+--- a/Framework/src/motion/modules/Head.cpp
++++ b/Framework/src/motion/modules/Head.cpp
+@@ -18,7 +18,7 @@ Head* Head::m_UniqueInstance = new Head();
+ 
+ Head::Head()
+ {
+-	m_Pan_p_gain = 0.1;
++	m_Pan_p_gain = 0.2;
+ 	m_Pan_d_gain = 0.22;
+ 
+     m_Tilt_p_gain = 0.1;
+@@ -143,25 +143,33 @@ void Head::MoveTracking()
+ {
+ 	double pOffset, dOffset;
+ 
+-	pOffset = m_Pan_err * m_Pan_p_gain;
+-	pOffset *= pOffset;
+-	if(m_Pan_err < 0)
+-		pOffset = -pOffset;
+-	dOffset = m_Pan_err_diff * m_Pan_d_gain;
+-	dOffset *= dOffset;
+-	if(m_Pan_err_diff < 0)
+-		dOffset = -dOffset;
+-	m_PanAngle += (pOffset + dOffset);
+-
+-	pOffset = m_Tilt_err * m_Tilt_p_gain;
+-	pOffset *= pOffset;
+-	if(m_Tilt_err < 0)
+-		pOffset = -pOffset;
+-	dOffset = m_Tilt_err_diff * m_Tilt_d_gain;
+-	dOffset *= dOffset;
+-	if(m_Tilt_err_diff < 0)
+-		dOffset = -dOffset;
+-	m_TiltAngle += (pOffset + dOffset);
++	// Do nothing if we do not have control. This prevents run-away
++	// on pan/tilt values.
++	if(m_Joint.GetEnable(JointData::ID_HEAD_PAN))
++	{
++		pOffset = m_Pan_err * m_Pan_p_gain;
++		pOffset *= pOffset;
++		if(m_Pan_err < 0)
++			pOffset = -pOffset;
++		dOffset = m_Pan_err_diff * m_Pan_d_gain;
++		dOffset *= dOffset;
++		if(m_Pan_err_diff < 0)
++			dOffset = -dOffset;
++		m_PanAngle += (pOffset + dOffset);
++	}
++
++	if(m_Joint.GetEnable(JointData::ID_HEAD_TILT))
++	{
++		pOffset = m_Tilt_err * m_Tilt_p_gain;
++		pOffset *= pOffset;
++		if(m_Tilt_err < 0)
++			pOffset = -pOffset;
++		dOffset = m_Tilt_err_diff * m_Tilt_d_gain;
++		dOffset *= dOffset;
++		if(m_Tilt_err_diff < 0)
++			dOffset = -dOffset;
++		m_TiltAngle += (pOffset + dOffset);
++	}
+ 
+ 	CheckLimit();
+ }
+@@ -170,7 +178,11 @@ void Head::Process()
+ {
+ 	if(m_Joint.GetEnable(JointData::ID_HEAD_PAN) == true)
+ 		m_Joint.SetAngle(JointData::ID_HEAD_PAN, m_PanAngle);
++	else
++		m_PanAngle = MotionStatus::m_CurrentJoints.GetAngle(JointData::ID_HEAD_PAN);
+ 
+ 	if(m_Joint.GetEnable(JointData::ID_HEAD_TILT) == true)
+ 		m_Joint.SetAngle(JointData::ID_HEAD_TILT, m_TiltAngle);
++	else
++		m_TiltAngle = MotionStatus::m_CurrentJoints.GetAngle(JointData::ID_HEAD_TILT);
+ }
+diff --git a/Framework/src/vision/BallFollower.cpp b/Framework/src/vision/BallFollower.cpp
+index 3085eeb..03a5d8b 100644
+--- a/Framework/src/vision/BallFollower.cpp
++++ b/Framework/src/vision/BallFollower.cpp
+@@ -6,6 +6,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <math.h>
+ #include "ImgProcess.h"
+ #include "MX28.h"
+ #include "Head.h"
+@@ -54,7 +55,7 @@ void BallFollower::Process(Point2D ball_pos)
+ 	if(DEBUG_PRINT == true)
+ 		fprintf(stderr, "\r                                                                               \r");
+ 
+-    if(ball_pos.X == -1.0 || ball_pos.Y == -1.0)
++    if(isnan(ball_pos.X) || isnan(ball_pos.Y))
+     {
+ 		KickBall = 0;
+ 
+diff --git a/Framework/src/vision/BallTracker.cpp b/Framework/src/vision/BallTracker.cpp
+index 7ff9cad..c2bd8b3 100644
+--- a/Framework/src/vision/BallTracker.cpp
++++ b/Framework/src/vision/BallTracker.cpp
+@@ -26,10 +26,10 @@ BallTracker::~BallTracker()
+ 
+ void BallTracker::Process(Point2D pos)
+ {
+-	if(pos.X < 0 || pos.Y < 0)
++	if(isnan(pos.X) || isnan(pos.Y))
+ 	{
+-		ball_position.X = -1;
+-		ball_position.Y = -1;
++		ball_position.X = NAN;
++		ball_position.Y = NAN;
+ 		if(NoBallCount < NoBallMaxCount)
+ 		{
+ 			Head::GetInstance()->MoveTracking();
+diff --git a/Framework/src/vision/ColorFinder.cpp b/Framework/src/vision/ColorFinder.cpp
+index d563b86..162f3fd 100644
+--- a/Framework/src/vision/ColorFinder.cpp
++++ b/Framework/src/vision/ColorFinder.cpp
+@@ -6,6 +6,7 @@
+  */
+ 
+ #include <stdlib.h>
++#include <math.h>
+ 
+ #include "ColorFinder.h"
+ #include "ImgProcess.h"
+@@ -125,7 +126,21 @@ void ColorFinder::SaveINISettings(minIni* ini, const std::string &section)
+     color_section = section;
+ }
+ 
+-Point2D& ColorFinder::GetPosition(Image* hsv_img)
++Point2D ColorFinder::undistort(const Point2D& point)
++{
++	Point2D result;
++	Point2D center = Point2D(m_result->m_Width/2, m_result->m_Height/2);
++	Point2D from_center = point - center;
++	double r2 = from_center.X*from_center.X + from_center.Y*from_center.Y;
++	const double ALPHA = -0.0002 * 0.09;
++
++	result.X = from_center.X / (1 + ALPHA * r2);
++	result.Y = from_center.Y / (1 + ALPHA * r2);
++
++	return center + result;
++}
++
++Point2D ColorFinder::GetPosition(Image* hsv_img)
+ {
+     int sum_x = 0, sum_y = 0, count = 0;
+ 
+@@ -134,10 +149,18 @@ Point2D& ColorFinder::GetPosition(Image* hsv_img)
+     ImgProcess::Erosion(m_result);
+     ImgProcess::Dilation(m_result);
+ 
++	const Point2D center(m_result->m_Width/2, m_result->m_Height/2);
++	const double lens_R = 160.0;
++	const double lens_R2 = lens_R*lens_R;
++
+     for(int y = 0; y < m_result->m_Height; y++)
+     {
+         for(int x = 0; x < m_result->m_Width; x++)
+         {
++			Point2D rel = Point2D(x,y) - center;
++			if(rel.X * rel.X + rel.Y * rel.Y > lens_R2)
++				continue;
++
+             if(m_result->m_ImageData[m_result->m_Width * y + x] > 0)
+             {
+                 sum_x += x;
+@@ -149,8 +172,9 @@ Point2D& ColorFinder::GetPosition(Image* hsv_img)
+ 
+     if(count <= (hsv_img->m_NumberOfPixels * m_min_percent / 100) || count > (hsv_img->m_NumberOfPixels * m_max_percent / 100))
+     {
+-        m_center_point.X = -1.0;
+-        m_center_point.Y = -1.0;
++        m_center_point.X = NAN;
++        m_center_point.Y = NAN;
++        return m_center_point;
+     }
+     else
+     {
+@@ -158,5 +182,5 @@ Point2D& ColorFinder::GetPosition(Image* hsv_img)
+         m_center_point.Y = (int)((double)sum_y / (double)count);
+     }
+ 
+-    return m_center_point;
++    return undistort(m_center_point);
+ }
+diff --git a/Linux/build/LinuxCamera.cpp b/Linux/build/LinuxCamera.cpp
+index 68fe836..08aca14 100644
+--- a/Linux/build/LinuxCamera.cpp
++++ b/Linux/build/LinuxCamera.cpp
+@@ -386,8 +386,6 @@ int LinuxCamera::ReadFrame()
+     //process_image (buffers[buf.index].start);
+     for(int i = 0; i < fbuffer->m_YUVFrame->m_ImageSize; i++)
+         fbuffer->m_YUVFrame->m_ImageData[i] = ((unsigned char*)buffers[buf.index].start)[i];
+-    ImgProcess::HFlipYUV(fbuffer->m_YUVFrame);
+-    ImgProcess::VFlipYUV(fbuffer->m_YUVFrame);
+     ImgProcess::YUVtoRGB(fbuffer);
+     ImgProcess::RGBtoHSV(fbuffer);
+ 
+diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
+index fd30a6d..5864bfa 100644
+--- a/Linux/project/demo/main.cpp
++++ b/Linux/project/demo/main.cpp
+@@ -11,6 +11,7 @@
+ #include <string.h>
+ #include <libgen.h>
+ #include <signal.h>
++#include <math.h>
+ 
+ #include "mjpg_streamer.h"
+ #include "LinuxDARwIn.h"
+@@ -230,7 +231,8 @@ int main(void)
+         }
+         else if(StatusCheck::m_cur_mode == SOCCER)
+         {
+-            tracker.Process(ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame));
++            ball_pos = ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame);
++            tracker.Process(ball_pos);
+ 
+             for(int i = 0; i < rgb_output->m_NumberOfPixels; i++)
+             {
+-- 
+1.7.9.5
+

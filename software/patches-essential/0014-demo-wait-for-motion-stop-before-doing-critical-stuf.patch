@@ -1,0 +1,33 @@
+From ee98047fd8afa80b11e4ccd88b10d9eaf783f09c Mon Sep 17 00:00:00 2001
+From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Mon, 17 Sep 2012 15:54:42 +0000
+Subject: [PATCH 14/26] demo: wait for motion stop before doing critical stuff
+
+---
+ Linux/project/demo/StatusCheck.cpp |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/Linux/project/demo/StatusCheck.cpp b/Linux/project/demo/StatusCheck.cpp
+index f38dfc3..0990a20 100644
+--- a/Linux/project/demo/StatusCheck.cpp
++++ b/Linux/project/demo/StatusCheck.cpp
+@@ -58,6 +58,7 @@ void StatusCheck::Check(CM730 &cm730)
+             LinuxActionScript::m_stop = 1;
+ 
+             Walking::GetInstance()->Stop();
++            while(Walking::GetInstance()->IsRunning() == 1) usleep(8000);
+             Action::GetInstance()->m_Joint.SetEnableBody(true, true);
+ 
+             while(Action::GetInstance()->Start(15) == false) usleep(8000);
+@@ -115,6 +116,8 @@ void StatusCheck::Check(CM730 &cm730)
+                 Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+                 Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+ 
++                sleep(2);
++
+                 MotionManager::GetInstance()->ResetGyroCalibration();
+                 while(1)
+                 {
+-- 
+1.7.9.5
+

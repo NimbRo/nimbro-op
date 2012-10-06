@@ -1,0 +1,25 @@
+From d2d729ba18646a8456d934a856729f4f9e274614 Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Mon, 24 Sep 2012 14:14:56 +0000
+Subject: [PATCH 01/26] CM730: merge uninitialized value fix from robotis SVN
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@173 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ Framework/src/CM730.cpp |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Framework/src/CM730.cpp b/Framework/src/CM730.cpp
+index 2cdfb17..7123d08 100644
+--- a/Framework/src/CM730.cpp
++++ b/Framework/src/CM730.cpp
+@@ -59,6 +59,7 @@ CM730::CM730(PlatformCM730 *platform)
+ {
+ 	m_Platform = platform;
+ 	DEBUG_PRINT = false;
++	m_BulkReadTxPacket[LENGTH] = 0;
+ 	for(int i = 0; i < ID_BROADCAST; i++)
+ 	    m_BulkReadData[i] = BulkReadData();
+ }
+-- 
+1.7.9.5
+

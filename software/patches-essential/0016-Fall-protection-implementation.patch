@@ -1,0 +1,491 @@
+From d49a19ab1804fdd0b4482192fed89c4face247ca Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Mon, 1 Oct 2012 14:50:14 +0000
+Subject: [PATCH 16/26] Fall protection implementation
+
+---
+ Framework/include/MotionManager.h      |   14 ++-
+ Framework/include/MotionStatus.h       |   22 +++-
+ Framework/src/motion/MotionManager.cpp |  182 +++++++++++++++++++++++---------
+ Framework/src/motion/MotionStatus.cpp  |    3 +-
+ Linux/project/demo/StatusCheck.cpp     |   67 +++++++++---
+ Linux/project/demo/main.cpp            |    4 +-
+ 6 files changed, 219 insertions(+), 73 deletions(-)
+
+diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
+index 3c7a9fe..b262097 100644
+--- a/Framework/include/MotionManager.h
++++ b/Framework/include/MotionManager.h
+@@ -20,6 +20,7 @@
+ #define OFFSET_SECTION "Offset"
+ #define INVERT_SECTION "Invert"
+ #define INVALID_VALUE   -1024.0
++#define ACCEL_WINDOW_SIZE   30
+ 
+ namespace Robot
+ {
+@@ -51,8 +52,14 @@ namespace Robot
+ 
+ 		AngleEstimator m_angleEstimator;
+ 
+-        MotionManager();
+-        void adaptTorqueToVoltage();
++		double m_fb_array[ACCEL_WINDOW_SIZE];
++		int m_buf_idx;
++
++		bool m_fallProtectionEnabled;
++
++		MotionManager();
++		void adaptTorqueToVoltage();
++		void fallProtection();
+ 
+ 	protected:
+ 
+@@ -90,6 +97,9 @@ namespace Robot
+ 
+ 		inline AngleEstimator* angleEstimator()
+ 		{ return &m_angleEstimator; }
++
++		inline void setFallProtectionEnabled(bool enabled)
++		{ m_fallProtectionEnabled = enabled; }
+ 	};
+ }
+ 
+diff --git a/Framework/include/MotionStatus.h b/Framework/include/MotionStatus.h
+index 626f34c..60147df 100644
+--- a/Framework/include/MotionStatus.h
++++ b/Framework/include/MotionStatus.h
+@@ -13,10 +13,21 @@
+ 
+ namespace Robot
+ {
+-    enum {
+-        BACKWARD    = -1,
+-        STANDUP     = 0,
+-        FORWARD     = 1
++    enum FallProtClientState
++    {
++        CS_RUNNING,
++        CS_READY_FOR_STANDUP,
++        CS_STANDUP
++    };
++
++    enum FallProtManagerState
++    {
++        MS_RUNNING,
++        MS_FALLING,
++        MS_FALLEN_BACKWARD,
++        MS_FALLEN_FORWARD,
++        MS_FADING_IN,
++        MS_READY_FOR_STANDUP
+     };
+ 
+ 	class MotionStatus
+@@ -38,7 +49,8 @@ namespace Robot
+ 		static double ANGLE_ROLL;   //!< roll angle in radians
+ 
+ 		static int BUTTON;
+-		static int FALLEN;
++        static FallProtClientState FALL_CLIENT_STATE;
++        static FallProtManagerState FALL_MANAGER_STATE;
+ 	};
+ }
+ 
+diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
+index 308f2bb..226710a 100644
+--- a/Framework/src/motion/MotionManager.cpp
++++ b/Framework/src/motion/MotionManager.cpp
+@@ -32,8 +32,13 @@ MotionManager::MotionManager() :
+     m_IsLogging(false),
+     m_torqueAdaptionCounter(TORQUE_ADAPTION_CYCLES),
+     m_voltageAdaptionFactor(1.0),
++    m_buf_idx(0),
++    m_fallProtectionEnabled(false),
+     DEBUG_PRINT(false)
+ {
++    for(int i = 0; i < ACCEL_WINDOW_SIZE; ++i)
++        m_fb_array[i] = 0;
++
+     for(int i = 0; i < JointData::NUMBER_OF_JOINTS; i++)
+     {
+         m_Offset[i] = 0;
+@@ -112,14 +117,13 @@ bool MotionManager::Initialize(CM730 *cm730, bool fadeIn)
+ 
+ bool MotionManager::Reinitialize()
+ {
+-	m_ProcessEnable = false;
+-
+-	m_CM730->DXLPowerOn();
+-
++    m_ProcessEnable = false;
+ 
++    m_CM730->DXLPowerOn();
++    DEBUG_PRINT = true;
+ 
++	m_CM730->DXLPowerOn();
+ 
+-	
+ 	int value, error;
+ 	for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
+ 	{
+@@ -144,8 +148,9 @@ bool MotionManager::Reinitialize()
+ 		}
+ 	}
+ 
+-	m_ProcessEnable = true;
+-	return true;
++    DEBUG_PRINT = false;
++    m_ProcessEnable = true;
++    return true;
+ }
+ 
+ void MotionManager::StartLogging()
+@@ -212,13 +217,21 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+ }
+ 
+ #define GYRO_WINDOW_SIZE    100
+-#define ACCEL_WINDOW_SIZE   30
+ #define MARGIN_OF_SD        2.0
+ void MotionManager::Process()
+ {
+-    if(m_fadeIn && m_torque_count < DEST_TORQUE) {
+-        m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, m_torque_count, 0);
+-        m_torque_count += 2;
++    if(MotionStatus::FALL_MANAGER_STATE == MS_FADING_IN || MotionStatus::FALL_MANAGER_STATE == MS_RUNNING || MotionStatus::FALL_MANAGER_STATE == Robot::MS_READY_FOR_STANDUP)
++    {
++        if(m_fadeIn && m_torque_count < DEST_TORQUE) {
++            m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, m_torque_count, 0);
++            m_torque_count += 1;
++        }
++
++        if(m_torque_count == DEST_TORQUE && --m_torqueAdaptionCounter == 0)
++        {
++            m_torqueAdaptionCounter = TORQUE_ADAPTION_CYCLES;
++            adaptTorqueToVoltage();
++        }
+     }
+ 
+     if(m_ProcessEnable == false || m_IsRunning == true)
+@@ -289,8 +302,6 @@ void MotionManager::Process()
+ 
+     if(m_CalibrationStatus == 1 && m_Enabled == true)
+     {
+-        static int fb_array[ACCEL_WINDOW_SIZE] = {512,};
+-        static int buf_idx = 0;
+         if(m_CM730->m_BulkReadData[CM730::ID_CM].error == 0)
+         {
+             const double GYRO_ALPHA = 0.1;
+@@ -302,9 +313,6 @@ void MotionManager::Process()
+             MotionStatus::RL_ACCEL = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_X_L);
+             MotionStatus::FB_ACCEL = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_Y_L);
+ 
+-            fb_array[buf_idx] = MotionStatus::FB_ACCEL;
+-            if(++buf_idx >= ACCEL_WINDOW_SIZE) buf_idx = 0;
+-
+             const double TICKS_TO_RADIANS_PER_STEP = (M_PI/180.0) * 250.0/512.0 * (0.001 * MotionModule::TIME_UNIT);
+             m_angleEstimator.predict(
+                -TICKS_TO_RADIANS_PER_STEP * gyroValFB,
+@@ -320,19 +328,10 @@ void MotionManager::Process()
+ 
+             MotionStatus::ANGLE_PITCH = m_angleEstimator.pitch();
+             MotionStatus::ANGLE_ROLL  = m_angleEstimator.roll();
+-        }
+ 
+-        int sum = 0, avr = 512;
+-        for(int idx = 0; idx < ACCEL_WINDOW_SIZE; idx++)
+-            sum += fb_array[idx];
+-        avr = sum / ACCEL_WINDOW_SIZE;
+-
+-        if(avr < MotionStatus::FALLEN_F_LIMIT)
+-            MotionStatus::FALLEN = FORWARD;
+-        else if(avr > MotionStatus::FALLEN_B_LIMIT)
+-            MotionStatus::FALLEN = BACKWARD;
+-        else
+-            MotionStatus::FALLEN = STANDUP;
++            if(m_fallProtectionEnabled)
++                fallProtection();
++        }
+ 
+         if(m_Modules.size() != 0)
+         {
+@@ -354,14 +353,16 @@ void MotionManager::Process()
+             }
+         }
+ 
+-        int param[JointData::NUMBER_OF_JOINTS * MX28::PARAM_BYTES];
+-        int n = 0;
+-        int joint_num = 0;
+-        for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
++        if(MotionStatus::FALL_MANAGER_STATE == MS_RUNNING || MotionStatus::FALL_MANAGER_STATE == MS_READY_FOR_STANDUP)
+         {
+-            if(MotionStatus::m_CurrentJoints.GetEnable(id) == true)
++            int param[JointData::NUMBER_OF_JOINTS * MX28::PARAM_BYTES];
++            int n = 0;
++            int joint_num = 0;
++            for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
+             {
+-                param[n++] = id;
++                if(MotionStatus::m_CurrentJoints.GetEnable(id) == true)
++                {
++                    param[n++] = id;
+ #ifdef MX28_1024
+                 param[n++] = MotionStatus::m_CurrentJoints.GetCWSlope(id);
+                 param[n++] = MotionStatus::m_CurrentJoints.GetCCWSlope(id);
+@@ -375,24 +376,27 @@ void MotionManager::Process()
+                 param[n++] = 0;
+ #endif
+ 
+-				int value = MotionStatus::m_CurrentJoints.GetValue(id);
+-				value = applyOffset(id, value);
++                int value = MotionStatus::m_CurrentJoints.GetValue(id);
++                value = applyOffset(id, value);
+ 
+                 param[n++] = CM730::GetLowByte(value);
+                 param[n++] = CM730::GetHighByte(value);
+                 joint_num++;
+-            }
++                }
+ 
+-            if(DEBUG_PRINT == true)
+-                fprintf(stderr, "ID[%d] : %d \n", id, MotionStatus::m_CurrentJoints.GetValue(id));
+-        }
++                if(DEBUG_PRINT == true)
++                    fprintf(stderr, "ID[%d] : %d \n", id, MotionStatus::m_CurrentJoints.GetValue(id));
++            }
+ 
+-        if(joint_num > 0)
++            if(joint_num > 0)
+ #ifdef MX28_1024
+-            m_CM730->SyncWrite(MX28::P_CW_COMPLIANCE_SLOPE, MX28::PARAM_BYTES, joint_num, param);
++                m_CM730->SyncWrite(MX28::P_CW_COMPLIANCE_SLOPE, MX28::PARAM_BYTES, joint_num, param);
+ #else
+-            m_CM730->SyncWrite(MX28::P_D_GAIN, MX28::PARAM_BYTES, joint_num, param);
++                m_CM730->SyncWrite(MX28::P_D_GAIN, MX28::PARAM_BYTES, joint_num, param);
+ #endif
++        }
++        else
++            printf("syncwrite inhibited\n");
+     }
+ 
+     m_CM730->BulkRead();
+@@ -417,12 +421,6 @@ void MotionManager::Process()
+         MotionStatus::BUTTON = m_CM730->m_BulkReadData[CM730::ID_CM].ReadByte(CM730::P_BUTTON);
+ 
+     m_IsRunning = false;
+-
+-    if(m_torque_count != DEST_TORQUE && --m_torqueAdaptionCounter == 0)
+-    {
+-        m_torqueAdaptionCounter = TORQUE_ADAPTION_CYCLES;
+-        adaptTorqueToVoltage();
+-    }
+ }
+ 
+ void MotionManager::SetEnable(bool enable)
+@@ -490,3 +488,89 @@ void MotionManager::adaptTorqueToVoltage()
+ 
+     m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, torque, 0);
+ }
++
++void MotionManager::fallProtection()
++{
++    m_fb_array[m_buf_idx] = MotionStatus::ANGLE_PITCH;
++    if(++m_buf_idx >= ACCEL_WINDOW_SIZE) m_buf_idx = 0;
++
++    switch(MotionStatus::FALL_MANAGER_STATE)
++    {
++        case MS_RUNNING:
++        {
++            // Fall protection
++            const double FB_ANGLE_BORDER = 30.0 * (M_PI / 180);
++            const double RL_ANGLE_BORDER = 30.0 * (M_PI / 180);
++
++            if((fabs(m_angleEstimator.pitch()) >= FB_ANGLE_BORDER) || (fabs(m_angleEstimator.roll()) >= RL_ANGLE_BORDER))
++            {
++                m_CM730->WriteByte(CM730::ID_BROADCAST, MX28::P_TORQUE_ENABLE, 0, 0);
++                printf("actuators disabled\n");
++                MotionStatus::FALL_MANAGER_STATE = MS_FALLING;
++                m_torque_count = 0;
++
++                if((fabs(m_angleEstimator.pitch()) >= FB_ANGLE_BORDER))
++                    printf("FB Falling!\n");
++                else if ((fabs(m_angleEstimator.roll()) >= RL_ANGLE_BORDER))
++                    printf("RL Falling!\n");
++            }
++        } // intended fallthrough
++        case MS_FALLING:
++        {
++            double sum = 0, avr = 512;
++            for(int idx = 0; idx < ACCEL_WINDOW_SIZE; idx++)
++                sum += m_fb_array[idx];
++            avr = sum / ACCEL_WINDOW_SIZE;
++
++            const double LIM_FB = 70.0 * M_PI / 180.0;
++            if(avr < -LIM_FB){
++                MotionStatus::FALL_MANAGER_STATE = MS_FALLEN_BACKWARD;
++                printf("fallen backward\n");
++            }
++            else if(avr > LIM_FB){
++                MotionStatus::FALL_MANAGER_STATE = MS_FALLEN_FORWARD;
++                printf("fallen forward\n");
++            }
++
++            break;
++        }
++        case MS_FALLEN_BACKWARD:
++        case MS_FALLEN_FORWARD:
++        {
++            if(MotionStatus::FALL_CLIENT_STATE == CS_READY_FOR_STANDUP)
++            {
++                // Read in current positions
++                Reinitialize();
++
++                // Enable torque again
++                m_torque_count = 0;
++                m_fadeIn = true;
++                m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, 0, 0);
++                m_CM730->WriteByte(CM730::ID_BROADCAST, MX28::P_TORQUE_ENABLE, 1, 0);
++
++                printf("Fading in\n");
++                MotionStatus::FALL_MANAGER_STATE = MS_FADING_IN;
++            }
++            break;
++        }
++        case MS_FADING_IN:
++        {
++//             if(m_torque_count == DEST_TORQUE)
++//             {
++                printf("torque ready, ready for standup\n");
++                Reinitialize();
++                MotionStatus::FALL_MANAGER_STATE = MS_READY_FOR_STANDUP;
++//             }
++            break;
++        }
++        case MS_READY_FOR_STANDUP:
++        {
++            if(MotionStatus::FALL_CLIENT_STATE == CS_RUNNING)
++            {
++                printf("Client running, standup finished\n");
++                MotionStatus::FALL_MANAGER_STATE = MS_RUNNING;
++            }
++            break;
++        }
++    }
++}
+diff --git a/Framework/src/motion/MotionStatus.cpp b/Framework/src/motion/MotionStatus.cpp
+index 7a0f827..a3847e7 100644
+--- a/Framework/src/motion/MotionStatus.cpp
++++ b/Framework/src/motion/MotionStatus.cpp
+@@ -16,7 +16,8 @@ int MotionStatus::FB_ACCEL(0);
+ int MotionStatus::RL_ACCEL(0);
+ 
+ int MotionStatus::BUTTON(0);
+-int MotionStatus::FALLEN(0);
++FallProtClientState MotionStatus::FALL_CLIENT_STATE = CS_RUNNING;
++FallProtManagerState MotionStatus::FALL_MANAGER_STATE = MS_RUNNING;
+ 
+ double MotionStatus::ANGLE_PITCH(0);
+ double MotionStatus::ANGLE_ROLL(0);
+diff --git a/Linux/project/demo/StatusCheck.cpp b/Linux/project/demo/StatusCheck.cpp
+index 0990a20..df5e859 100644
+--- a/Linux/project/demo/StatusCheck.cpp
++++ b/Linux/project/demo/StatusCheck.cpp
+@@ -24,22 +24,59 @@ int StatusCheck::m_is_started   = 0;
+ 
+ void StatusCheck::Check(CM730 &cm730)
+ {
+-    if(MotionStatus::FALLEN != STANDUP && m_cur_mode == SOCCER && m_is_started == 1)
++    if(m_cur_mode == SOCCER && m_is_started == 1)
+     {
+-        Walking::GetInstance()->Stop();
+-        while(Walking::GetInstance()->IsRunning() == 1) usleep(8000);
+-
+-        Action::GetInstance()->m_Joint.SetEnableBody(true, true);
+-
+-        if(MotionStatus::FALLEN == FORWARD)
+-            Action::GetInstance()->Start(10);   // FORWARD GETUP
+-        else if(MotionStatus::FALLEN == BACKWARD)
+-            Action::GetInstance()->Start(11);   // BACKWARD GETUP
+-
+-        while(Action::GetInstance()->IsRunning() == 1) usleep(8000);
+-
+-        Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+-        Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
++        FallProtManagerState side;
++        do
++        {
++            switch(MotionStatus::FALL_CLIENT_STATE)
++            {
++                case CS_RUNNING:
++                    if(MotionStatus::FALL_MANAGER_STATE == MS_FALLEN_BACKWARD
++                        || MotionStatus::FALL_MANAGER_STATE == MS_FALLEN_FORWARD)
++                    {
++                        side = MotionStatus::FALL_MANAGER_STATE;
++                        Head::GetInstance()->m_Joint.SetEnableHeadOnly(false, false);
++                        Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(false, false);
++                        Action::GetInstance()->m_Joint.SetEnableBody(true, true);
++                        printf("disabled modules!\n");
++                        while(Walking::GetInstance()->IsRunning() == 1)
++                        {
++                            printf("Waiting for Walking stop\n");
++                            Walking::GetInstance()->Stop();
++                            usleep(8000);
++                        }
++                        printf("walking stopped\n");
++
++                        sleep(2);
++                        MotionStatus::FALL_CLIENT_STATE = CS_READY_FOR_STANDUP;
++                    }
++                    break;
++                case CS_READY_FOR_STANDUP:
++                    if(MotionStatus::FALL_MANAGER_STATE == MS_READY_FOR_STANDUP)
++                    {
++                        printf("Executing action\n");
++                        Action::GetInstance()->m_Joint.SetEnableBody(true, true);
++                        Action::GetInstance()->Initialize();
++
++                        if(side == MS_FALLEN_BACKWARD)
++                            Action::GetInstance()->Start(11);   // BACKWARD GETUP
++                        else
++                            Action::GetInstance()->Start(10);   // FORWARD GETUP
++                        MotionStatus::FALL_CLIENT_STATE = CS_STANDUP;
++                    }
++                    break;
++                case CS_STANDUP:
++                    if(!Action::GetInstance()->IsRunning())
++                    {
++                        printf("Action finished\n");
++                        Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
++                        Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
++                        MotionStatus::FALL_CLIENT_STATE = CS_RUNNING;
++                    }
++                    break;
++            }
++        } while(MotionStatus::FALL_CLIENT_STATE != CS_RUNNING);
+     }
+ 
+     if(m_old_btn == MotionStatus::BUTTON)
+diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
+index 7745558..a91ca59 100644
+--- a/Linux/project/demo/main.cpp
++++ b/Linux/project/demo/main.cpp
+@@ -102,6 +102,8 @@ int main(void)
+         }
+     }
+ 
++    MotionManager::GetInstance()->setFallProtectionEnabled(true);
++
+     MotionManager::GetInstance()->AddModule((MotionModule*)Action::GetInstance());
+     MotionManager::GetInstance()->AddModule((MotionModule*)Head::GetInstance());
+     MotionManager::GetInstance()->AddModule((MotionModule*)Walking::GetInstance());
+@@ -255,7 +257,7 @@ int main(void)
+         case READY:
+             break;
+         case SOCCER:
+-            if(Action::GetInstance()->IsRunning() == 0)
++            if(Action::GetInstance()->IsRunning() == 0 && MotionStatus::FALL_CLIENT_STATE == CS_RUNNING)
+             {
+                 Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+                 Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
+-- 
+1.7.9.5
+

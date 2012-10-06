@@ -1,0 +1,103 @@
+From 829ac82c2e5cf2986670aad3725503a32363649c Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Wed, 25 Jul 2012 12:26:17 +0000
+Subject: [PATCH 09/26] LinuxMotionTimer: improved performance
+
+Changes:
+ - do not try to catch up on missed cycles
+ - use RT I/O priority (fixes lags)
+---
+ Linux/build/LinuxMotionTimer.cpp |   63 +++++++++++++++++++++++++++++++++++---
+ 1 file changed, 59 insertions(+), 4 deletions(-)
+
+diff --git a/Linux/build/LinuxMotionTimer.cpp b/Linux/build/LinuxMotionTimer.cpp
+index 2245171..cd18b57 100644
+--- a/Linux/build/LinuxMotionTimer.cpp
++++ b/Linux/build/LinuxMotionTimer.cpp
+@@ -11,6 +11,50 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <unistd.h>
++#include <sys/time.h>
++
++#if defined(__i386__)
++#define __NR_ioprio_set         289
++#define __NR_ioprio_get         290
++#elif defined(__ppc__)
++#define __NR_ioprio_set         273
++#define __NR_ioprio_get         274
++#elif defined(__x86_64__)
++#define __NR_ioprio_set         251
++#define __NR_ioprio_get         252
++#elif defined(__ia64__)
++#define __NR_ioprio_set         1274
++#define __NR_ioprio_get         1275
++#else
++#error "Unsupported arch"
++#endif
++
++static inline int ioprio_set(int which, int who, int ioprio)
++{
++        return syscall(__NR_ioprio_set, which, who, ioprio);
++}
++
++static inline int ioprio_get(int which, int who)
++{
++        return syscall(__NR_ioprio_get, which, who);
++}
++
++enum {
++        IOPRIO_CLASS_NONE,
++        IOPRIO_CLASS_RT,
++        IOPRIO_CLASS_BE,
++        IOPRIO_CLASS_IDLE,
++};
++
++enum {
++        IOPRIO_WHO_PROCESS = 1,
++        IOPRIO_WHO_PGRP,
++        IOPRIO_WHO_USER,
++};
++
++#define IOPRIO_CLASS_SHIFT      13
++
++
+ 
+ using namespace Robot;
+ 
+@@ -24,17 +68,28 @@ LinuxMotionTimer::LinuxMotionTimer(MotionManager* manager)
+ void *LinuxMotionTimer::TimerProc(void *param)
+ {
+     LinuxMotionTimer *timer = (LinuxMotionTimer *)param;
+-    static struct timespec next_time;
++    struct timespec next_time;
++    struct timespec current_time;
+     clock_gettime(CLOCK_MONOTONIC,&next_time);
++    
++    // Set I/O priority to realtime
++    ioprio_set(IOPRIO_WHO_PROCESS, getpid(), (IOPRIO_CLASS_RT << 13) | 0);
+ 
+     while(!timer->m_FinishTimer)
+     {
+-        next_time.tv_sec += (next_time.tv_nsec + MotionModule::TIME_UNIT * 1000000) / 1000000000;
+-        next_time.tv_nsec = (next_time.tv_nsec + MotionModule::TIME_UNIT * 1000000) % 1000000000;
+-
+         if(timer->m_Manager != NULL)
+             timer->m_Manager->Process();
+ 
++        // Calculate the next reachable period
++        clock_gettime(CLOCK_MONOTONIC, &current_time);
++        do
++        {
++            next_time.tv_sec += (next_time.tv_nsec + MotionModule::TIME_UNIT * 1000000) / 1000000000;
++            next_time.tv_nsec = (next_time.tv_nsec + MotionModule::TIME_UNIT * 1000000) % 1000000000;
++        }
++        while(current_time.tv_sec > next_time.tv_sec
++            || (current_time.tv_sec == next_time.tv_sec && current_time.tv_nsec > next_time.tv_nsec));
++
+         clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next_time, NULL);
+     }
+ 
+-- 
+1.7.9.5
+

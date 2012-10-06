@@ -1,0 +1,84 @@
+From c7d8a0b414aa91d4f2e0daa99eb08ec62e5c47ef Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Wed, 25 Jul 2012 15:33:54 +0000
+Subject: [PATCH 22/26] Walking: beep on IK error
+
+---
+ Framework/include/CM730.h                |    1 +
+ Framework/include/MotionManager.h        |    3 +++
+ Framework/src/CM730.cpp                  |    7 +++++++
+ Framework/src/motion/modules/Walking.cpp |    5 +++++
+ 4 files changed, 16 insertions(+)
+
+diff --git a/Framework/include/CM730.h b/Framework/include/CM730.h
+index fd6abf5..4679a5a 100644
+--- a/Framework/include/CM730.h
++++ b/Framework/include/CM730.h
+@@ -181,6 +181,7 @@ namespace Robot
+ 		// For board
+ 		int WriteByte(int address, int value, int *error);
+ 		int WriteWord(int address, int value, int *error);
++		int Beep(int tune, int duration);
+ 
+ 		// For actuators
+ 		int Ping(int id, int *error);
+diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
+index a377555..1e3c275 100644
+--- a/Framework/include/MotionManager.h
++++ b/Framework/include/MotionManager.h
+@@ -112,6 +112,9 @@ namespace Robot
+ 
+ 		inline void setFallProtectionEnabled(bool enabled)
+ 		{ m_fallProtectionEnabled = enabled; }
++
++		inline CM730* GetCM730()
++		{ return m_CM730; }
+ 	};
+ }
+ 
+diff --git a/Framework/src/CM730.cpp b/Framework/src/CM730.cpp
+index 7123d08..a97f093 100644
+--- a/Framework/src/CM730.cpp
++++ b/Framework/src/CM730.cpp
+@@ -697,3 +697,10 @@ int CM730::MakeColor(int red, int green, int blue)
+ 
+ 	return (int)(((b>>3)<<10)|((g>>3)<<5)|(r>>3));
+ }
++
++int CM730::Beep(int tune, int duration)
++{
++	WriteByte(CM730::P_BUZZER_HIGH, duration, 0);
++	WriteByte(CM730::P_BUZZER_LOW, tune, 0);
++	return 0;
++}
+diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
+index 267721f..ca5012c 100644
+--- a/Framework/src/motion/modules/Walking.cpp
++++ b/Framework/src/motion/modules/Walking.cpp
+@@ -14,11 +14,15 @@
+ #include "Kinematics.h"
+ #include "Walking.h"
+ #include "QuadraticStateTransform.h"
++#include "CM730.h"
++#include "MotionManager.h"
+ 
+ using namespace Robot;
+ 
+ #define LOG_BALANCE 0
+ 
++
++
+ #define PI (3.14159265)
+ 
+ Walking* Walking::m_UniqueInstance = new Walking();
+@@ -677,6 +681,7 @@ void Walking::Process()
+     }
+ 	else
+ 	{
++		MotionManager::GetInstance()->GetCM730()->Beep(40, 1);
+ 		return; // Do not use angle;
+ 	}
+ 
+-- 
+1.7.9.5
+

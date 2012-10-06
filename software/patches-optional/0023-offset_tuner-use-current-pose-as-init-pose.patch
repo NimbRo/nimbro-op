@@ -1,0 +1,72 @@
+From 5863c2989733e8e26e6bdf20521cbbdb4f1a9fdd Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Fri, 28 Sep 2012 13:42:43 +0000
+Subject: [PATCH 23/26] offset_tuner: use current pose as init pose
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@191 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ Linux/project/offset_tuner/cmd_process.cpp |   44 ++++++++++++++++------------
+ 1 file changed, 26 insertions(+), 18 deletions(-)
+
+diff --git a/Linux/project/offset_tuner/cmd_process.cpp b/Linux/project/offset_tuner/cmd_process.cpp
+index eb5c659..84e93c8 100644
+--- a/Linux/project/offset_tuner/cmd_process.cpp
++++ b/Linux/project/offset_tuner/cmd_process.cpp
+@@ -246,28 +246,36 @@ void DrawIntro(CM730 *cm730)
+     int param[JointData::NUMBER_OF_JOINTS * 5];
+     int wGoalPosition, wStartPosition, wDistance;
+ 
+-    for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
++//     for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
++//     {
++//         wStartPosition = MotionStatus::m_CurrentJoints.GetValue(id);
++//         wGoalPosition = MotionManager::GetInstance()->applyOffset(id, InitPose[id]);
++//         if( wStartPosition > wGoalPosition )
++//             wDistance = wStartPosition - wGoalPosition;
++//         else
++//             wDistance = wGoalPosition - wStartPosition;
++// 
++//         wDistance >>= 3;
++//         if( wDistance < 8 )
++//             wDistance = 8;
++// 
++//         param[n++] = id;
++//         param[n++] = CM730::GetLowByte(wGoalPosition);
++//         param[n++] = CM730::GetHighByte(wGoalPosition);
++//         param[n++] = CM730::GetLowByte(wDistance);
++//         param[n++] = CM730::GetHighByte(wDistance);
++//     }
++// 
++//     cm730->SyncWrite(MX28::P_GOAL_POSITION_L, 5, JointData::NUMBER_OF_JOINTS - 1, param);
++
++    for(int id = JointData::ID_R_SHOULDER_PITCH; id < JointData::NUMBER_OF_JOINTS; ++id)
+     {
+-        wStartPosition = MotionStatus::m_CurrentJoints.GetValue(id);
+-        wGoalPosition = MotionManager::GetInstance()->applyOffset(id, InitPose[id]);
+-        if( wStartPosition > wGoalPosition )
+-            wDistance = wStartPosition - wGoalPosition;
+-        else
+-            wDistance = wGoalPosition - wStartPosition;
++        int value;
++        cm730->ReadWord(id, MX28::P_GOAL_POSITION_L, &value, 0);
+ 
+-        wDistance >>= 3;
+-        if( wDistance < 8 )
+-            wDistance = 8;
+-
+-        param[n++] = id;
+-        param[n++] = CM730::GetLowByte(wGoalPosition);
+-        param[n++] = CM730::GetHighByte(wGoalPosition);
+-        param[n++] = CM730::GetLowByte(wDistance);
+-        param[n++] = CM730::GetHighByte(wDistance);
++        InitPose[id] = MotionManager::GetInstance()->removeOffset(id, value);
+     }
+ 
+-    cm730->SyncWrite(MX28::P_GOAL_POSITION_L, 5, JointData::NUMBER_OF_JOINTS - 1, param);
+-
+ 	int nrows, ncolumns;
+     setupterm(NULL, fileno(stdout), (int *)0);
+     nrows = tigetnum("lines");
+-- 
+1.7.9.5
+

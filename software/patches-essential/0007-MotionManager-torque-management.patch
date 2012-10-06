@@ -1,0 +1,244 @@
+From fc50dc695ca4991066df907903f998fca15f46cc Mon Sep 17 00:00:00 2001
+From: Max Schwarz <Max@x-quadraht.de>
+Date: Fri, 5 Oct 2012 14:07:56 +0200
+Subject: [PATCH 07/26] MotionManager: torque management
+
+Changes:
+ - fade in torque on startup
+ - include torque adaption to battery voltage
+   improves the tuning situation.
+---
+ Framework/include/MotionManager.h      |   13 ++++-
+ Framework/src/motion/MotionManager.cpp |   96 +++++++++++++++++++++++++++-----
+ Linux/project/offset_tuner/main.cpp    |    2 +-
+ 3 files changed, 94 insertions(+), 17 deletions(-)
+
+diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
+index 0ab145e..3419f79 100644
+--- a/Framework/include/MotionManager.h
++++ b/Framework/include/MotionManager.h
+@@ -38,22 +38,31 @@ namespace Robot
+ 		bool m_IsThreadRunning;
+ 		bool m_IsLogging;
+ 
++		bool m_fadeIn;
++		int m_torque_count;
++
++		FILE* m_voltageLog;
++
+ 		std::ofstream m_LogFileStream;
+ 
++		unsigned int m_torqueAdaptionCounter;
++		double m_voltageAdaptionFactor;
++
+         MotionManager();
++        void adaptTorqueToVoltage();
+ 
+ 	protected:
+ 
+ 	public:
+ 		bool DEBUG_PRINT;
+         int m_Offset[JointData::NUMBER_OF_JOINTS];
+-	bool m_invert[JointData::NUMBER_OF_JOINTS];
++		bool m_invert[JointData::NUMBER_OF_JOINTS];
+ 
+ 		~MotionManager();
+ 
+ 		static MotionManager* GetInstance() { return m_UniqueInstance; }
+ 
+-		bool Initialize(CM730 *cm730);
++		bool Initialize(CM730 *cm730, bool fadeIn = true);
+ 		bool Reinitialize();
+         void Process();
+ 		void SetEnable(bool enable);
+diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
+index ff1dbc9..4837b5d 100644
+--- a/Framework/src/motion/MotionManager.cpp
++++ b/Framework/src/motion/MotionManager.cpp
+@@ -11,39 +11,56 @@
+ #include "MX28.h"
+ #include "MotionManager.h"
+ #include <unistd.h>
++#include <assert.h>
+ 
+ using namespace Robot;
+ 
++// Torque adaption every second
++const int TORQUE_ADAPTION_CYCLES = 1000 / MotionModule::TIME_UNIT;
++const int DEST_TORQUE = 1023;
++
++#define LOG_VOLTAGES 1
++
+ MotionManager* MotionManager::m_UniqueInstance = new MotionManager();
+ 
+ MotionManager::MotionManager() :
+-        m_CM730(0),
+-        m_ProcessEnable(false),
+-        m_Enabled(false),
+-        m_IsRunning(false),
+-        m_IsThreadRunning(false),
+-        m_IsLogging(false),
+-        DEBUG_PRINT(false)
++    m_CM730(0),
++    m_ProcessEnable(false),
++    m_Enabled(false),
++    m_IsRunning(false),
++    m_IsThreadRunning(false),
++    m_IsLogging(false),
++    m_torqueAdaptionCounter(TORQUE_ADAPTION_CYCLES),
++    m_voltageAdaptionFactor(1.0),
++    DEBUG_PRINT(false)
+ {
+     for(int i = 0; i < JointData::NUMBER_OF_JOINTS; i++)
+     {
+         m_Offset[i] = 0;
+         m_invert[i] = false;
+     }
++
++#if LOG_VOLTAGES
++    assert((m_voltageLog = fopen("voltage.log", "w")));
++    fprintf(m_voltageLog, "Voltage   Torque\n");
++#endif
+ }
+ 
+ MotionManager::~MotionManager()
+ {
+ }
+ 
+-bool MotionManager::Initialize(CM730 *cm730)
++bool MotionManager::Initialize(CM730 *cm730, bool fadeIn)
+ {
+ 	int value, error;
+ 
++
++	
++	usleep(10000);
+ 	m_CM730 = cm730;
+ 	m_Enabled = false;
+ 	m_ProcessEnable = true;
+-
++	
+ 	if(m_CM730->Connect() == false)
+ 	{
+ 		if(DEBUG_PRINT == true)
+@@ -74,9 +91,21 @@ bool MotionManager::Initialize(CM730 *cm730)
+ 		}
+ 	}
+ 
++	if(fadeIn)
++	{
++		for(int i=JointData::ID_R_SHOULDER_PITCH; i<JointData::NUMBER_OF_JOINTS; i++)
++			cm730->WriteWord(i, MX28::P_TORQUE_LIMIT_L, 0, 0);
++	}
++
++	m_fadeIn = fadeIn;
++	m_torque_count = 0;
++
+ 	m_CalibrationStatus = 0;
+ 	m_FBGyroCenter = 512;
+ 	m_RLGyroCenter = 512;
++	
++
++		
+ 
+ 	return true;
+ }
+@@ -87,6 +116,10 @@ bool MotionManager::Reinitialize()
+ 
+ 	m_CM730->DXLPowerOn();
+ 
++
++
++
++	
+ 	int value, error;
+ 	for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
+ 	{
+@@ -179,6 +212,11 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+ #define MARGIN_OF_SD        2.0
+ void MotionManager::Process()
+ {
++    if(m_fadeIn && m_torque_count < DEST_TORQUE) {
++        m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, m_torque_count, 0);
++        m_torque_count += 2;
++    }
++
+     if(m_ProcessEnable == false || m_IsRunning == true)
+         return;
+ 
+@@ -305,7 +343,10 @@ void MotionManager::Process()
+ #else
+                 param[n++] = MotionStatus::m_CurrentJoints.GetDGain(id);
+                 param[n++] = MotionStatus::m_CurrentJoints.GetIGain(id);
+-                param[n++] = MotionStatus::m_CurrentJoints.GetPGain(id);
++                int p_gain = m_voltageAdaptionFactor * MotionStatus::m_CurrentJoints.GetPGain(id);
++                if(p_gain <= 0)
++                    p_gain = 1;
++                param[n++] = p_gain;
+                 param[n++] = 0;
+ #endif
+ 
+@@ -351,6 +392,12 @@ void MotionManager::Process()
+         MotionStatus::BUTTON = m_CM730->m_BulkReadData[CM730::ID_CM].ReadByte(CM730::P_BUTTON);
+ 
+     m_IsRunning = false;
++
++    if(m_torque_count != DEST_TORQUE && --m_torqueAdaptionCounter == 0)
++    {
++        m_torqueAdaptionCounter = TORQUE_ADAPTION_CYCLES;
++        adaptTorqueToVoltage();
++    }
+ }
+ 
+ void MotionManager::SetEnable(bool enable)
+@@ -391,9 +438,30 @@ int MotionManager::applyOffset(int id, int position)
+ 
+ int MotionManager::removeOffset(int id, int position)
+ {
+-	position -= m_Offset[id];
+-	if(m_invert[id])
+-		position = -(position - 2048) + 2048;
++    position -= m_Offset[id];
++    if(m_invert[id])
++        position = -(position - 2048) + 2048;
+ 
+-	return position;
++    return position;
++}
++
++void MotionManager::adaptTorqueToVoltage()
++{
++    const int DEST_TORQUE = 1023;
++    const int FULL_TORQUE_VOLTAGE = 130; // 13V
++
++    int voltage;
++
++    if(m_CM730->ReadByte(CM730::ID_CM, CM730::P_VOLTAGE, &voltage, 0) != CM730::SUCCESS)
++        return;
++
++    voltage = (voltage > FULL_TORQUE_VOLTAGE) ? voltage : FULL_TORQUE_VOLTAGE;
++    m_voltageAdaptionFactor = ((double)FULL_TORQUE_VOLTAGE) / voltage;
++    int torque = m_voltageAdaptionFactor * DEST_TORQUE;
++
++#if LOG_VOLTAGES
++    fprintf(m_voltageLog, "%3d       %4d\n", voltage, torque);
++#endif
++
++    m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, torque, 0);
+ }
+diff --git a/Linux/project/offset_tuner/main.cpp b/Linux/project/offset_tuner/main.cpp
+index 8d4701d..2d9adbc 100644
+--- a/Linux/project/offset_tuner/main.cpp
++++ b/Linux/project/offset_tuner/main.cpp
+@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
+     ////////////////////////////////////////////////////////////
+ 
+     //////////////////// Framework Initialize ////////////////////////////	
+-    if(MotionManager::GetInstance()->Initialize(&cm730) == false)
++    if(MotionManager::GetInstance()->Initialize(&cm730, false) == false)
+     {
+         printf("Initializing Motion Manager failed!\n");
+         return 0;
+-- 
+1.7.9.5
+

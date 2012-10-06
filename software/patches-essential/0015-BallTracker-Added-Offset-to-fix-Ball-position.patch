@@ -1,0 +1,85 @@
+From b3dee430cfd377d409152d83911e40fb62349eea Mon Sep 17 00:00:00 2001
+From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Tue, 25 Sep 2012 13:34:35 +0000
+Subject: [PATCH 15/26] BallTracker: Added Offset to fix Ball position
+
+---
+ Framework/include/BallTracker.h      |    4 +++-
+ Framework/src/vision/BallTracker.cpp |   19 +++++++++++++++++++
+ Linux/project/demo/main.cpp          |    2 ++
+ 3 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/Framework/include/BallTracker.h b/Framework/include/BallTracker.h
+index a38dbd3..ffb5dea 100644
+--- a/Framework/include/BallTracker.h
++++ b/Framework/include/BallTracker.h
+@@ -20,13 +20,15 @@ namespace Robot
+ 	private:
+ 		int NoBallCount;
+ 		static const int NoBallMaxCount = 15;
++		int m_offsetDir;
++		bool m_offsetConfig;
+ 
+ 	public:
+         Point2D     ball_position;
+ 
+ 		BallTracker();
+ 		~BallTracker();
+-
++		void resetOffConf();
+ 		void Process(Point2D pos);
+ 	};
+ }
+diff --git a/Framework/src/vision/BallTracker.cpp b/Framework/src/vision/BallTracker.cpp
+index c2bd8b3..a996fb1 100644
+--- a/Framework/src/vision/BallTracker.cpp
++++ b/Framework/src/vision/BallTracker.cpp
+@@ -18,6 +18,8 @@ BallTracker::BallTracker() :
+         ball_position(Point2D(-1.0, -1.0))
+ {
+ 	NoBallCount = 0;
++	m_offsetDir = 0;
++	m_offsetConfig = true;
+ }
+ 
+ BallTracker::~BallTracker()
+@@ -47,6 +49,23 @@ void BallTracker::Process(Point2D pos)
+ 		offset.X *= (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH); // pixel per angle
+ 		offset.Y *= (Camera::VIEW_V_ANGLE / (double)Camera::HEIGHT); // pixel per angle
+ 		ball_position = offset;
++
++		const int KICK_OFFSET = 10 * (Camera::VIEW_H_ANGLE / (double)Camera::WIDTH);
++		if(m_offsetConfig){
++			m_offsetDir = ball_position.X > 0 ? 1 : -1;
++			m_offsetConfig = false;
++		}
++
++
++		if (m_offsetDir == 1)
++			ball_position.X -= KICK_OFFSET;
++		else if (m_offsetDir == -1)
++			ball_position.X += KICK_OFFSET;
++
+ 		Head::GetInstance()->MoveTracking(ball_position);
+ 	}
+ }
++
++void BallTracker::resetOffConf(){
++	m_offsetConfig = true;
++}
+diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
+index 2f34a15..7745558 100644
+--- a/Linux/project/demo/main.cpp
++++ b/Linux/project/demo/main.cpp
+@@ -278,6 +278,8 @@ int main(void)
+                         fprintf(stderr, "LeftKick! \n");
+                     }
+ 
++                    tracker.resetOffConf();
++
+                     while(Action::GetInstance()->IsRunning()) usleep(8000);
+ 
+                     sleep(1);
+-- 
+1.7.9.5
+

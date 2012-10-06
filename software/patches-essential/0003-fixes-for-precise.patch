@@ -1,0 +1,170 @@
+From 32306234631835cd059703789ec1eb039d56f7b8 Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Tue, 24 Jul 2012 12:41:27 +0000
+Subject: [PATCH 03/26] fixes for precise
+
+Source: http://www.robotsource.org/xe/8056
+
+Additional changes:
+ - further Makefile fixes
+ - use mplayer for audio output
+ - add unistd header where needed
+ - enable gcc debugging flag
+ - walk_tuner: initialize CM730 correctly
+ - LinuxCamera: do not exit on read timeout
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@115 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ Framework/src/motion/MotionManager.cpp |    1 +
+ Linux/build/LinuxActionScript.cpp      |    4 ++--
+ Linux/build/LinuxCamera.cpp            |    2 +-
+ Linux/build/LinuxMotionTimer.cpp       |    1 +
+ Linux/build/Makefile                   |    2 +-
+ Linux/project/demo/Makefile            |    6 +++---
+ Linux/project/demo/VisionMode.cpp      |    1 +
+ Linux/project/walk_tuner/main.cpp      |    6 ++++--
+ 8 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
+index 57e9a5b..d566c21 100644
+--- a/Framework/src/motion/MotionManager.cpp
++++ b/Framework/src/motion/MotionManager.cpp
+@@ -10,6 +10,7 @@
+ #include "FSR.h"
+ #include "MX28.h"
+ #include "MotionManager.h"
++#include <unistd.h>
+ 
+ using namespace Robot;
+ 
+diff --git a/Linux/build/LinuxActionScript.cpp b/Linux/build/LinuxActionScript.cpp
+index d74b1d7..b3d9845 100644
+--- a/Linux/build/LinuxActionScript.cpp
++++ b/Linux/build/LinuxActionScript.cpp
+@@ -127,7 +127,7 @@ int LinuxActionScript::PlayMP3(const char* filename)
+         break;
+     case 0:
+         fprintf(stderr, "Playing MPEG stream from \"%s\" ...\n", filename);
+-        execl("/usr/bin/madplay", "madplay", filename, "-q", (char*)0);
++        execl("/usr/bin/mplayer", "mplayer", filename, "-really-quiet", (char*)0);
+         fprintf(stderr, "exec failed!! \n");
+         break;
+     default:
+@@ -151,7 +151,7 @@ int LinuxActionScript::PlayMP3Wait(const char* filename)
+         break;
+     case 0:
+         fprintf(stderr, "Playing MPEG stream from \"%s\" ...\n", filename);
+-        execl("/usr/bin/madplay", "madplay", filename, "-q", (char*)0);
++        execl("/usr/bin/mplayer", "mplayer", filename, "-really-quiet", (char*)0);
+         fprintf(stderr, "exec failed!! \n");
+         break;
+     default:
+diff --git a/Linux/build/LinuxCamera.cpp b/Linux/build/LinuxCamera.cpp
+index 062af92..68fe836 100644
+--- a/Linux/build/LinuxCamera.cpp
++++ b/Linux/build/LinuxCamera.cpp
+@@ -13,6 +13,7 @@
+ #include <errno.h>
+ #include <sys/mman.h>
+ #include <sys/ioctl.h>
++#include <sys/stat.h>
+ 
+ #include "Camera.h"
+ #include "LinuxCamera.h"
+@@ -435,7 +436,6 @@ void LinuxCamera::CaptureFrame()
+ 
+         if (0 == r) {
+             fprintf (stderr, "select timeout\n");
+-            exit (EXIT_FAILURE);
+         }
+ 
+         if (ReadFrame())
+diff --git a/Linux/build/LinuxMotionTimer.cpp b/Linux/build/LinuxMotionTimer.cpp
+index 388fe1c..2245171 100644
+--- a/Linux/build/LinuxMotionTimer.cpp
++++ b/Linux/build/LinuxMotionTimer.cpp
+@@ -10,6 +10,7 @@
+ 
+ #include <stdlib.h>
+ #include <string.h>
++#include <unistd.h>
+ 
+ using namespace Robot;
+ 
+diff --git a/Linux/build/Makefile b/Linux/build/Makefile
+index 75193df..b608861 100644
+--- a/Linux/build/Makefile
++++ b/Linux/build/Makefile
+@@ -15,7 +15,7 @@ TARGET = darwin.a
+ 
+ INCLUDE_DIRS = -I../include -I../../Framework/include
+ 
+-CXXFLAGS += -O2 -DLINUX -Wall -shared $(INCLUDE_DIRS)
++CXXFLAGS += -O2 -DLINUX -Wall -g -shared $(INCLUDE_DIRS)
+ #CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall -shared $(INCLUDE_DIRS)
+ LFLAGS += -lpthread -ldl
+ 
+diff --git a/Linux/project/demo/Makefile b/Linux/project/demo/Makefile
+index 1af1e9e..8ced7d0 100644
+--- a/Linux/project/demo/Makefile
++++ b/Linux/project/demo/Makefile
+@@ -12,9 +12,9 @@ TARGET = demo
+ INCLUDE_DIRS = -I../../include -I../../../Framework/include
+ 
+ CXX = g++
+-CXXFLAGS += -O2 -DLINUX -Wall $(INCLUDE_DIRS)
++CXXFLAGS += -g -O2 -DLINUX -Wall $(INCLUDE_DIRS)
+ #CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall $(INCLUDE_DIRS)
+-LFLAGS += -lpthread -ljpeg -lrt
++LFLAGS += -g -lpthread -ljpeg -lrt
+ 
+ OBJECTS = VisionMode.o StatusCheck.o main.o
+ 
+@@ -32,7 +32,7 @@ darwin.a:
+ 	make -C ../../build
+ 
+ $(TARGET): darwin.a $(OBJECTS)
+-	$(CXX) $(CFLAGS) $(LFLAGS) $(OBJECTS) ../../lib/darwin.a -o $(TARGET)
++	$(CXX) $(CFLAGS) $(OBJECTS) ../../lib/darwin.a $(LFLAGS) -o $(TARGET)
+ 	chmod 755 $(TARGET)
+ 
+ # useful to make a backup "make tgz"
+diff --git a/Linux/project/demo/VisionMode.cpp b/Linux/project/demo/VisionMode.cpp
+index cdd4dbe..9d61fe0 100644
+--- a/Linux/project/demo/VisionMode.cpp
++++ b/Linux/project/demo/VisionMode.cpp
+@@ -5,6 +5,7 @@
+  *      Author: zerom
+  */
+ #include <stdio.h>
++#include <unistd.h>
+ #include "VisionMode.h"
+ #include "Action.h"
+ #include "ColorFinder.h"
+diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
+index 36fb8cc..d3c2949 100644
+--- a/Linux/project/walk_tuner/main.cpp
++++ b/Linux/project/walk_tuner/main.cpp
+@@ -14,8 +14,7 @@
+ 
+ using namespace Robot;
+ 
+-LinuxCM730 linux_cm730("/dev/ttyUSB0");
+-CM730 cm730(&linux_cm730);
++
+ 
+ void change_current_dir()
+ {
+@@ -42,6 +41,9 @@ int main(int argc, char *argv[])
+     signal(SIGINT, &sighandler);
+ 
+     change_current_dir();
++    
++    LinuxCM730 linux_cm730("/dev/ttyUSB0");
++    CM730 cm730(&linux_cm730);
+ 
+     minIni* ini = new minIni(INI_FILE_PATH);
+ 
+-- 
+1.7.9.5
+

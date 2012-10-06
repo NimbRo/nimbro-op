@@ -1,0 +1,37 @@
+From a51dfe856528be00328f5b0ff45f2b0cb9309a7b Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Mon, 17 Sep 2012 13:13:22 +0000
+Subject: [PATCH 02/26] added deploy script
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@140 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ deploy.sh |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+ create mode 100755 deploy.sh
+
+diff --git a/deploy.sh b/deploy.sh
+new file mode 100755
+index 0000000..2c85d87
+--- /dev/null
++++ b/deploy.sh
+@@ -0,0 +1,16 @@
++#!/bin/bash
++
++PROJECTS="demo walk_tuner dxl_monitor vision_test offset_tuner action_editor"
++FILES='Linux Linux/project linux.log'
++
++for proj in $PROJECTS; do
++	FILES="$FILES Linux/project/$proj Linux/project/$proj/$proj"
++done
++
++include_spec=""
++for file in $FILES; do
++	include_spec="$include_spec --include=$file"
++done
++
++CMD="rsync -tavzu --include=Data --include=Data/** $include_spec --exclude=* . nimbro@192.168.0.142:mount/tsop"
++$CMD
+\ No newline at end of file
+-- 
+1.7.9.5
+

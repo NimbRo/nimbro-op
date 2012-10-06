@@ -1,0 +1,26 @@
+From 90bf544f27cce652e4e16a6b18161e5957df7149 Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Mon, 1 Oct 2012 14:50:14 +0000
+Subject: [PATCH 24/26] dxl_monitor: show error byte on Write()
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@194 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ Linux/project/dxl_monitor/cmd_process.cpp |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Linux/project/dxl_monitor/cmd_process.cpp b/Linux/project/dxl_monitor/cmd_process.cpp
+index 3131617..4e17216 100644
+--- a/Linux/project/dxl_monitor/cmd_process.cpp
++++ b/Linux/project/dxl_monitor/cmd_process.cpp
+@@ -497,7 +497,7 @@ void Write(Robot::CM730 *cm730, int id, int addr, int value)
+ 
+ 	if(error != 0)
+ 	{
+-		printf( " Access or range error!\n");
++		printf( " Access or range error (error: 0x%02X)!\n", error);
+ 		return;
+ 	}
+ 
+-- 
+1.7.9.5
+

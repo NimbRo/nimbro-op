@@ -1,0 +1,42 @@
+From d59af6d89dcc5113507fa9df906769d5ea62087d Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Wed, 25 Jul 2012 15:27:00 +0000
+Subject: [PATCH 21/26] cm730: allow beeper access
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@28 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ Framework/include/CM730.h                 |    2 ++
+ Linux/project/dxl_monitor/cmd_process.cpp |    4 +++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/Framework/include/CM730.h b/Framework/include/CM730.h
+index f608c7e..fd6abf5 100644
+--- a/Framework/include/CM730.h
++++ b/Framework/include/CM730.h
+@@ -145,6 +145,8 @@ namespace Robot
+ 			P_ADC14_H				= 78,
+ 			P_ADC15_L				= 79,
+ 			P_ADC15_H				= 80,
++			P_BUZZER_LOW            = 81,
++			P_BUZZER_HIGH           = 82,
+ 			MAXNUM_ADDRESS
+ 		};
+ 
+diff --git a/Linux/project/dxl_monitor/cmd_process.cpp b/Linux/project/dxl_monitor/cmd_process.cpp
+index 7de7ff0..3131617 100644
+--- a/Linux/project/dxl_monitor/cmd_process.cpp
++++ b/Linux/project/dxl_monitor/cmd_process.cpp
+@@ -426,7 +426,9 @@ void Write(Robot::CM730 *cm730, int id, int addr, int value)
+ 		}
+ 
+ 		if(addr == CM730::P_DXL_POWER
+-			|| addr == CM730::P_LED_PANNEL)
++			|| addr == CM730::P_LED_PANNEL
++			|| addr == CM730::P_BUZZER_HIGH
++			|| addr == CM730::P_BUZZER_LOW)
+ 		{
+ 			res = cm730->WriteByte(addr, value, &error);
+ 		}
+-- 
+1.7.9.5
+

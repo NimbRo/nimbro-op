@@ -1,0 +1,114 @@
+From b16b2e5eb861012df3d4a2ff09c82be2fda968c9 Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Thu, 13 Sep 2012 10:54:06 +0000
+Subject: [PATCH 04/26] Point: implement operators properly
+
+---
+ Framework/include/Point.h    |   18 +++++++++---------
+ Framework/src/math/Point.cpp |   18 +++++++++---------
+ 2 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/Framework/include/Point.h b/Framework/include/Point.h
+index ce94aab..f544c6d 100644
+--- a/Framework/include/Point.h
++++ b/Framework/include/Point.h
+@@ -28,19 +28,19 @@ namespace Robot
+ 
+ 		static double Distance(Point2D &pt1, Point2D &pt2);
+ 
+-		Point2D & operator = (Point2D &point);
+-		Point2D & operator += (Point2D &point);
+-		Point2D & operator -= (Point2D &point);
++		Point2D & operator = (const Point2D &point);
++		Point2D & operator += (const Point2D &point);
++		Point2D & operator -= (const Point2D &point);
+ 		Point2D & operator += (double value);
+ 		Point2D & operator -= (double value);
+ 		Point2D & operator *= (double value);
+ 		Point2D & operator /= (double value);
+-		Point2D operator + (Point2D &point);
+-		Point2D operator - (Point2D &point);
+-		Point2D operator + (double value);
+-		Point2D operator - (double value);
+-		Point2D operator * (double value);
+-		Point2D operator / (double value);
++		Point2D operator + (const Point2D &point) const;
++		Point2D operator - (const Point2D &point) const;
++		Point2D operator + (double value) const;
++		Point2D operator - (double value) const;
++		Point2D operator * (double value) const;
++		Point2D operator / (double value) const;
+ 	};
+ 
+ 	class Point3D
+diff --git a/Framework/src/math/Point.cpp b/Framework/src/math/Point.cpp
+index 99fdf09..29526bf 100644
+--- a/Framework/src/math/Point.cpp
++++ b/Framework/src/math/Point.cpp
+@@ -40,21 +40,21 @@ double Point2D::Distance(Point2D &pt1, Point2D &pt2)
+ 	return sqrt(x * x + y * y);
+ }
+ 
+-Point2D & Point2D::operator = (Point2D &point)
++Point2D & Point2D::operator = (const Point2D &point)
+ {
+ 	X = point.X;
+ 	Y = point.Y;
+ 	return *this;
+ }
+ 
+-Point2D & Point2D::operator += (Point2D &point)
++Point2D & Point2D::operator += (const Point2D &point)
+ {
+ 	X += point.X;
+ 	Y += point.Y;
+ 	return *this;
+ }
+ 
+-Point2D & Point2D::operator -= (Point2D &point)
++Point2D & Point2D::operator -= (const Point2D &point)
+ {
+ 	X -= point.X;
+ 	Y -= point.Y;
+@@ -89,32 +89,32 @@ Point2D & Point2D::operator /= (double value)
+ 	return *this;
+ }
+ 
+-Point2D Point2D::operator + (Point2D &point)
++Point2D Point2D::operator + (const Point2D &point) const
+ {
+ 	return Point2D(X + point.X, Y + point.Y);
+ }
+ 
+-Point2D Point2D::operator - (Point2D &point)
++Point2D Point2D::operator - (const Point2D &point) const
+ {
+ 	return Point2D(X - point.X, Y - point.Y);
+ }
+ 
+-Point2D Point2D::operator + (double value)
++Point2D Point2D::operator + (double value) const
+ {
+ 	return Point2D(X + value, Y + value);
+ }
+ 
+-Point2D Point2D::operator - (double value)
++Point2D Point2D::operator - (double value) const
+ {
+ 	return Point2D(X - value, Y - value);
+ }
+ 
+-Point2D Point2D::operator * (double value)
++Point2D Point2D::operator * (double value) const
+ {
+ 	return Point2D(X * value, Y * value);
+ }
+ 
+-Point2D Point2D::operator / (double value)
++Point2D Point2D::operator / (double value) const
+ {
+ 	return Point2D(X / value, Y / value);
+ }
+-- 
+1.7.9.5
+

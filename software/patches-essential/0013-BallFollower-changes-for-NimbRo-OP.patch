@@ -1,0 +1,253 @@
+From cfa203bedf55c8f155789447b3a6f98be52616db Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Wed, 29 Aug 2012 15:02:03 +0000
+Subject: [PATCH 13/26] BallFollower: changes for NimbRo-OP
+
+Changes:
+ - do not stop walking if no ball is seen
+ - if decided to stop, then stop
+ - do not kick again immediately
+ - general parameter tunings
+---
+ Framework/include/BallFollower.h      |    5 ++
+ Framework/src/vision/BallFollower.cpp |   81 +++++++++++++++++++++++----------
+ Linux/project/demo/main.cpp           |    6 +++
+ 3 files changed, 69 insertions(+), 23 deletions(-)
+
+diff --git a/Framework/include/BallFollower.h b/Framework/include/BallFollower.h
+index 6f2d353..622a67d 100644
+--- a/Framework/include/BallFollower.h
++++ b/Framework/include/BallFollower.h
+@@ -22,6 +22,8 @@ namespace Robot
+ 		int m_KickBallMaxCount;
+ 		int m_KickBallCount;
+ 
++		bool m_stopWalking;
++
+ 		double m_MaxFBStep;
+ 		double m_MaxRLStep;
+ 		double m_MaxDirAngle;
+@@ -43,6 +45,8 @@ namespace Robot
+ 		double m_FBStep;
+ 		double m_RLTurn;
+ 
++        timeval m_stopTime;
++
+ 	protected:
+ 
+ 	public:
+@@ -53,6 +57,7 @@ namespace Robot
+ 		~BallFollower();
+ 
+ 		void Process(Point2D ball_pos);
++        void resetKickCount();
+ 	};
+ }
+ 
+diff --git a/Framework/src/vision/BallFollower.cpp b/Framework/src/vision/BallFollower.cpp
+index 03a5d8b..26f3b46 100644
+--- a/Framework/src/vision/BallFollower.cpp
++++ b/Framework/src/vision/BallFollower.cpp
+@@ -7,6 +7,7 @@
+ 
+ #include <stdio.h>
+ #include <math.h>
++#include <sys/time.h>
+ #include "ImgProcess.h"
+ #include "MX28.h"
+ #include "Head.h"
+@@ -26,17 +27,17 @@ BallFollower::BallFollower()
+ 	m_KickBallMaxCount = 10;
+ 	m_KickBallCount = 0;
+ 
+-	m_KickTopAngle = -5.0;
+-	m_KickRightAngle = -30.0;
+-	m_KickLeftAngle = 30.0;
++	m_KickTopAngle = -20.0;
++	m_KickRightAngle = -10.0;
++	m_KickLeftAngle = 10.0;
+ 
+-	m_FollowMaxFBStep = 30.0;
+-    m_FollowMinFBStep = 5.0;
+-	m_FollowMaxRLTurn = 35.0;
+-	m_FitFBStep = 3.0;
+-	m_FitMaxRLTurn = 35.0;
+-	m_UnitFBStep = 0.3;
+-	m_UnitRLTurn = 1.0;
++	m_FollowMaxFBStep = 20.0;
++    m_FollowMinFBStep = 2.0;
++	m_FollowMaxRLTurn = 45.0;
++	m_FitFBStep = 1.0;
++	m_FitMaxRLTurn = 45.0;
++	m_UnitFBStep = 0.06;
++	m_UnitRLTurn = 8.3;
+ 
+ 	m_GoalFBStep = 0;
+ 	m_GoalRLTurn = 0;
+@@ -44,6 +45,10 @@ BallFollower::BallFollower()
+ 	m_RLTurn = 0;
+ 	DEBUG_PRINT = false;
+ 	KickBall = 0;
++
++	gettimeofday(&m_stopTime, 0);
++
++	m_stopWalking = false;
+ }
+ 
+ BallFollower::~BallFollower()
+@@ -52,8 +57,8 @@ BallFollower::~BallFollower()
+ 
+ void BallFollower::Process(Point2D ball_pos)
+ {
+-	if(DEBUG_PRINT == true)
+-		fprintf(stderr, "\r                                                                               \r");
++//	if(DEBUG_PRINT == true)
++//		fprintf(stderr, "\r                                                                               \r");
+ 
+     if(isnan(ball_pos.X) || isnan(ball_pos.Y))
+     {
+@@ -93,12 +98,15 @@ void BallFollower::Process(Point2D ball_pos)
+ 
+ 		if(pan > m_KickRightAngle && pan < m_KickLeftAngle)
+ 		{
+-			if(tilt <= (tilt_min + MX28::RATIO_VALUE2ANGLE))
++// 			fprintf(stderr,"pan: %5.2f\n", pan);
++			if(tilt <= (tilt_min + MX28::RATIO_VALUE2ANGLE) && ball_pos.Y < -10)
+ 			{
++// 				fprintf(stderr, "ballpos.y: %5.2f\n", ball_pos.Y);
+ 				if(ball_pos.Y < m_KickTopAngle)
+ 				{
+ 					m_GoalFBStep = 0;
+ 					m_GoalRLTurn = 0;
++					m_stopWalking = true;
+ 
+ 					if(m_KickBallCount >= m_KickBallMaxCount)
+ 					{
+@@ -107,7 +115,9 @@ void BallFollower::Process(Point2D ball_pos)
+ 						if(DEBUG_PRINT == true)
+ 							fprintf(stderr, "[KICK]");
+ 
+-						if(pan > 0)
++                        fprintf(stderr, " top angle %.1f ", ball_pos.Y);
++
++						if(pan > 0.97)//0
+ 						{
+ 							KickBall = 1; // Left
+ 							if(DEBUG_PRINT == true)
+@@ -133,6 +143,7 @@ void BallFollower::Process(Point2D ball_pos)
+ 					KickBall = 0;
+ 					m_GoalFBStep = m_FitFBStep;
+ 					m_GoalRLTurn = m_FitMaxRLTurn * pan_percent;
++					m_stopWalking = false;
+ 					if(DEBUG_PRINT == true)
+ 						fprintf(stderr, "[FIT(P:%.2f T:%.2f>%.2f)]", pan, ball_pos.Y, m_KickTopAngle);
+ 				}
+@@ -145,8 +156,9 @@ void BallFollower::Process(Point2D ball_pos)
+ 				if(m_GoalFBStep < m_FollowMinFBStep)
+ 				    m_GoalFBStep = m_FollowMinFBStep;
+ 				m_GoalRLTurn = m_FollowMaxRLTurn * pan_percent;
++				m_stopWalking = false;
+ 				if(DEBUG_PRINT == true)
+-					fprintf(stderr, "[FOLLOW(P:%.2f T:%.2f>%.2f]", pan, tilt, tilt_min);
++					fprintf(stderr, "[FOLLOW far away (P:%.2f T:%.2f>%.2f]", pan, tilt, tilt_min);
+ 			}
+ 		}
+ 		else
+@@ -155,12 +167,13 @@ void BallFollower::Process(Point2D ball_pos)
+ 			KickBall = 0;
+ 			m_GoalFBStep = 0;
+ 			m_GoalRLTurn = m_FollowMaxRLTurn * pan_percent;
++			m_stopWalking = false;
+ 			if(DEBUG_PRINT == true)
+-				fprintf(stderr, "[FOLLOW(P:%.2f T:%.2f>%.2f]", pan, tilt, tilt_min);
++				fprintf(stderr, "[FOLLOW pan angle limit (P:%.2f T:%.2f>%.2f]", pan, tilt, tilt_min);
+ 		}		
+ 	}
+ 
+-	if(m_GoalFBStep == 0 && m_GoalRLTurn == 0 && m_FBStep == 0 && m_RLTurn == 0)
++	if(m_stopWalking)
+ 	{
+ 		if(Walking::GetInstance()->IsRunning() == true)
+ 			Walking::GetInstance()->Stop();
+@@ -172,6 +185,8 @@ void BallFollower::Process(Point2D ball_pos)
+ 
+ 		if(DEBUG_PRINT == true)
+ 			fprintf(stderr, " STOP");
++
++		gettimeofday(&m_stopTime, 0);
+ 	}
+ 	else
+ 	{
+@@ -184,26 +199,46 @@ void BallFollower::Process(Point2D ball_pos)
+ 			m_RLTurn = 0;
+ 			m_KickBallCount = 0;
+ 			KickBall = 0;
+-			Walking::GetInstance()->X_MOVE_AMPLITUDE = m_FBStep;
+-			Walking::GetInstance()->A_MOVE_AMPLITUDE = m_RLTurn;
+-			Walking::GetInstance()->Start();			
++
++			timeval now;
++			gettimeofday(&now, 0);
++
++			double diff_msec = (now.tv_sec - m_stopTime.tv_sec) * 1000 + (now.tv_usec - m_stopTime.tv_usec) / 1000;
++
++			if(diff_msec > 1000)
++			{
++				Walking::GetInstance()->X_MOVE_AMPLITUDE = m_FBStep;
++				Walking::GetInstance()->A_MOVE_AMPLITUDE = m_RLTurn;
++				Walking::GetInstance()->Start();
++			}
+ 		}
+ 		else
+ 		{
++			const double THRESHOLD = 0.001;
++
+ 			if(m_FBStep < m_GoalFBStep)
+ 				m_FBStep += m_UnitFBStep;
+ 			else if(m_FBStep > m_GoalFBStep)
+ 				m_FBStep = m_GoalFBStep;
+ 			Walking::GetInstance()->X_MOVE_AMPLITUDE = m_FBStep;
+ 
+-			if(m_RLTurn < m_GoalRLTurn)
++			if(m_RLTurn < m_GoalRLTurn - THRESHOLD)
+ 				m_RLTurn += m_UnitRLTurn;
+-			else if(m_RLTurn > m_GoalRLTurn)
++			else if(m_RLTurn > m_GoalRLTurn + THRESHOLD)
+ 				m_RLTurn -= m_UnitRLTurn;
+ 			Walking::GetInstance()->A_MOVE_AMPLITUDE = m_RLTurn;
++			Walking::GetInstance()->Start();
+ 
+ 			if(DEBUG_PRINT == true)
+-				fprintf(stderr, " (FB:%.1f RL:%.1f)", m_FBStep, m_RLTurn);
++				fprintf(stderr, " (FB:% 5.1f of % 5.1f RL: % 5.1f of % 5.1f)", m_FBStep, m_GoalFBStep, m_RLTurn, m_GoalRLTurn);
+ 		}
+ 	}	
++	if(DEBUG_PRINT)
++		fprintf(stderr, "\n");
++}
++
++void BallFollower::resetKickCount()
++{
++    m_KickBallCount = 0;
++    KickBall = 0;
+ }
+diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
+index 5864bfa..2f34a15 100644
+--- a/Linux/project/demo/main.cpp
++++ b/Linux/project/demo/main.cpp
+@@ -277,6 +277,12 @@ int main(void)
+                         Action::GetInstance()->Start(13);   // LEFT KICK
+                         fprintf(stderr, "LeftKick! \n");
+                     }
++
++                    while(Action::GetInstance()->IsRunning()) usleep(8000);
++
++                    sleep(1);
++
++                    follower.resetKickCount(); // Do not kick again immediately
+                 }
+             }
+             break;
+-- 
+1.7.9.5
+

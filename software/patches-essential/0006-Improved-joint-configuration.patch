@@ -1,0 +1,648 @@
+From cdd5895be709a9b5796417022eb56f3b34ae632b Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Tue, 24 Jul 2012 12:41:28 +0000
+Subject: [PATCH 06/26] Improved joint configuration
+
+Changes:
+ - additional inversion flag
+ - correct propagation of offsets
+ - use low P gain for arms & head
+---
+ Data/config.ini                             |    8 +--
+ Framework/include/JointData.h               |    6 +-
+ Framework/include/MotionManager.h           |    5 ++
+ Framework/src/motion/JointData.cpp          |   25 ++++++-
+ Framework/src/motion/MotionManager.cpp      |   33 +++++++++-
+ Framework/src/motion/modules/Action.cpp     |    9 ++-
+ Framework/src/motion/modules/Walking.cpp    |    9 +--
+ Linux/project/action_editor/cmd_process.cpp |   17 ++++-
+ Linux/project/action_editor/main.cpp        |    4 ++
+ Linux/project/demo/main.cpp                 |    7 +-
+ Linux/project/offset_tuner/cmd_process.cpp  |   95 +++++++++++++++++----------
+ Linux/project/offset_tuner/cmd_process.h    |    1 +
+ Linux/project/walk_tuner/cmd_process.cpp    |    2 +-
+ Linux/project/walk_tuner/main.cpp           |    3 +
+ 14 files changed, 162 insertions(+), 62 deletions(-)
+
+diff --git a/Data/config.ini b/Data/config.ini
+index 8485270..6a93cda 100644
+--- a/Data/config.ini
++++ b/Data/config.ini
+@@ -3,8 +3,8 @@ ID_01=2
+ ID_02=2
+ ID_03=2
+ ID_04=-2
+-ID_05=-312
+-ID_06=309
++ID_05=0
++ID_06=0
+ ID_07=0
+ ID_08=0
+ ID_09=256
+@@ -25,8 +25,8 @@ ID_01=0
+ ID_02=0
+ ID_03=0
+ ID_04=0
+-ID_05=0
+-ID_06=0
++ID_05=1
++ID_06=1
+ ID_07=0
+ ID_08=0
+ ID_09=1
+diff --git a/Framework/include/JointData.h b/Framework/include/JointData.h
+index 60254ed..f5010d8 100644
+--- a/Framework/include/JointData.h
++++ b/Framework/include/JointData.h
+@@ -49,12 +49,12 @@ namespace Robot
+ 
+ 		enum
+ 		{
+-		    P_GAIN_DEFAULT      = 32,
++		    P_GAIN_DEFAULT      = 16, // see defaultPGain() for joint defaults
+ 		    I_GAIN_DEFAULT      = 0,
+ 		    D_GAIN_DEFAULT      = 0
+ 		};
+ 
+-	private:		
++	private:
+ 
+ 	protected:
+ 		bool m_Enable[NUMBER_OF_JOINTS];
+@@ -107,6 +107,8 @@ namespace Robot
+ 		void SetCCWSlope(int id, int ccwSlope);
+ 		int  GetCCWSlope(int id);
+ 
++		int defaultPGain(int id);
++
+         void SetPGain(int id, int pgain) { m_PGain[id] = pgain; }
+         int  GetPGain(int id)            { return m_PGain[id]; }
+         void SetIGain(int id, int igain) { m_IGain[id] = igain; }
+diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
+index 6ef51d8..0ab145e 100644
+--- a/Framework/include/MotionManager.h
++++ b/Framework/include/MotionManager.h
+@@ -17,6 +17,7 @@
+ #include "minIni.h"
+ 
+ #define OFFSET_SECTION "Offset"
++#define INVERT_SECTION "Invert"
+ #define INVALID_VALUE   -1024.0
+ 
+ namespace Robot
+@@ -46,6 +47,7 @@ namespace Robot
+ 	public:
+ 		bool DEBUG_PRINT;
+         int m_Offset[JointData::NUMBER_OF_JOINTS];
++	bool m_invert[JointData::NUMBER_OF_JOINTS];
+ 
+ 		~MotionManager();
+ 
+@@ -63,6 +65,9 @@ namespace Robot
+ 		int GetCalibrationStatus() { return m_CalibrationStatus; }
+ 		void SetJointDisable(int index);
+ 
++		int applyOffset(int id, int position);
++		int removeOffset(int id, int position);
++
+ 		void StartLogging();
+ 		void StopLogging();
+ 
+diff --git a/Framework/src/motion/JointData.cpp b/Framework/src/motion/JointData.cpp
+index 6a7b9ad..2953424 100644
+--- a/Framework/src/motion/JointData.cpp
++++ b/Framework/src/motion/JointData.cpp
+@@ -20,9 +20,9 @@ JointData::JointData()
+         m_Angle[i] = 0.0;
+         m_CWSlope[i] = SLOPE_DEFAULT;
+         m_CCWSlope[i] = SLOPE_DEFAULT;
+-        m_PGain[i] = P_GAIN_DEFAULT;
+         m_IGain[i] = I_GAIN_DEFAULT;
+         m_DGain[i] = D_GAIN_DEFAULT;
++        m_PGain[i] = defaultPGain(i);
+     }
+ }
+ 
+@@ -224,3 +224,26 @@ int JointData::GetCCWSlope(int id)
+ {
+     return m_CCWSlope[id];
+ }
++
++int JointData::defaultPGain(int id)
++{
++    switch(id)
++    {
++        case JointData::ID_R_SHOULDER_PITCH:
++        case JointData::ID_R_SHOULDER_ROLL:
++        case JointData::ID_R_ELBOW:
++        case JointData::ID_L_SHOULDER_PITCH:
++        case JointData::ID_L_SHOULDER_ROLL:
++        case JointData::ID_L_ELBOW:
++            // Arms do not need to hold position precisely, make them more
++            // compliant to protect the gears from breaking if the robot falls
++            return 1;
++
++        case JointData::ID_HEAD_PAN:
++        case JointData::ID_HEAD_TILT:
++            return 3;
++
++        default:
++            return 16;
++    }
++}
+diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
+index d566c21..ff1dbc9 100644
+--- a/Framework/src/motion/MotionManager.cpp
++++ b/Framework/src/motion/MotionManager.cpp
+@@ -26,7 +26,10 @@ MotionManager::MotionManager() :
+         DEBUG_PRINT(false)
+ {
+     for(int i = 0; i < JointData::NUMBER_OF_JOINTS; i++)
++    {
+         m_Offset[i] = 0;
++        m_invert[i] = false;
++    }
+ }
+ 
+ MotionManager::~MotionManager()
+@@ -55,6 +58,7 @@ bool MotionManager::Initialize(CM730 *cm730)
+ 		
+ 		if(m_CM730->ReadWord(id, MX28::P_PRESENT_POSITION_L, &value, &error) == CM730::SUCCESS)
+ 		{
++			value = removeOffset(id, value);
+ 			MotionStatus::m_CurrentJoints.SetValue(id, value);
+ 			MotionStatus::m_CurrentJoints.SetEnable(id, true);
+ 
+@@ -91,6 +95,7 @@ bool MotionManager::Reinitialize()
+ 		
+ 		if(m_CM730->ReadWord(id, MX28::P_PRESENT_POSITION_L, &value, &error) == CM730::SUCCESS)
+ 		{
++			value = removeOffset(id, value);
+ 			MotionStatus::m_CurrentJoints.SetValue(id, value);
+ 			MotionStatus::m_CurrentJoints.SetEnable(id, true);
+ 
+@@ -151,6 +156,7 @@ void MotionManager::LoadINISettings(minIni* ini, const std::string &section)
+         char key[10];
+         sprintf(key, "ID_%.2d", i);
+         if((ivalue = ini->geti(section, key, INVALID_VALUE)) != INVALID_VALUE)  m_Offset[i] = ivalue;
++        if((ivalue = ini->geti(INVERT_SECTION, key, INVALID_VALUE)) != INVALID_VALUE) m_invert[i] = ivalue;
+     }
+ }
+ void MotionManager::SaveINISettings(minIni* ini)
+@@ -164,6 +170,7 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+         char key[10];
+         sprintf(key, "ID_%.2d", i);
+         ini->put(section, key, m_Offset[i]);
++	ini->put(INVERT_SECTION, key, (int)m_invert[i]);
+     }
+ }
+ 
+@@ -301,8 +308,12 @@ void MotionManager::Process()
+                 param[n++] = MotionStatus::m_CurrentJoints.GetPGain(id);
+                 param[n++] = 0;
+ #endif
+-                param[n++] = CM730::GetLowByte(MotionStatus::m_CurrentJoints.GetValue(id) + m_Offset[id]);
+-                param[n++] = CM730::GetHighByte(MotionStatus::m_CurrentJoints.GetValue(id) + m_Offset[id]);
++
++				int value = MotionStatus::m_CurrentJoints.GetValue(id);
++				value = applyOffset(id, value);
++
++                param[n++] = CM730::GetLowByte(value);
++                param[n++] = CM730::GetHighByte(value);
+                 joint_num++;
+             }
+ 
+@@ -368,3 +379,21 @@ void MotionManager::SetJointDisable(int index)
+             (*i)->m_Joint.SetEnable(index, false);
+     }
+ }
++
++int MotionManager::applyOffset(int id, int position)
++{
++	if(m_invert[id])
++		position = -(position - 2048) + 2048;
++	position += m_Offset[id];
++
++	return position;
++}
++
++int MotionManager::removeOffset(int id, int position)
++{
++	position -= m_Offset[id];
++	if(m_invert[id])
++		position = -(position - 2048) + 2048;
++
++	return position;
++}
+diff --git a/Framework/src/motion/modules/Action.cpp b/Framework/src/motion/modules/Action.cpp
+index 6c3d7f8..93f54cf 100644
+--- a/Framework/src/motion/modules/Action.cpp
++++ b/Framework/src/motion/modules/Action.cpp
+@@ -396,8 +396,13 @@ void Action::Process()
+ 						}
+ 					}
+ 
+-					m_Joint.SetSlope(bID, 1 << (m_PlayPage.header.slope[bID]>>4), 1 << (m_PlayPage.header.slope[bID]&0x0f));                    
+-                    m_Joint.SetPGain(bID, (256 >> (m_PlayPage.header.slope[bID]>>4)) << 2);
++					m_Joint.SetSlope(bID, 1 << (m_PlayPage.header.slope[bID]>>4), 1 << (m_PlayPage.header.slope[bID]&0x0f));
++
++					int pgain = (256 >> (m_PlayPage.header.slope[bID]>>4)) << 2;
++					if(pgain == 32) // ignore default gain so global defaults apply
++						m_Joint.SetPGain(bID, m_Joint.defaultPGain(bID));
++					else
++						m_Joint.SetPGain(bID, pgain);
+                 }
+             }
+         }
+diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
+index 353d2c7..6431b55 100644
+--- a/Framework/src/motion/modules/Walking.cpp
++++ b/Framework/src/motion/modules/Walking.cpp
+@@ -67,14 +67,7 @@ Walking::Walking()
+     m_Joint.SetSlope(JointData::ID_L_SHOULDER_ROLL, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
+     m_Joint.SetSlope(JointData::ID_R_ELBOW, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
+     m_Joint.SetSlope(JointData::ID_L_ELBOW, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
+-	m_Joint.SetSlope(JointData::ID_HEAD_PAN, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
+-
+-    m_Joint.SetPGain(JointData::ID_R_SHOULDER_PITCH, 8);
+-    m_Joint.SetPGain(JointData::ID_L_SHOULDER_PITCH, 8);
+-    m_Joint.SetPGain(JointData::ID_R_SHOULDER_ROLL, 8);
+-    m_Joint.SetPGain(JointData::ID_L_SHOULDER_ROLL, 8);
+-    m_Joint.SetPGain(JointData::ID_R_ELBOW, 8);
+-    m_Joint.SetPGain(JointData::ID_L_ELBOW, 8);
++    m_Joint.SetSlope(JointData::ID_HEAD_PAN, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
+ }
+ 
+ Walking::~Walking()
+diff --git a/Linux/project/action_editor/cmd_process.cpp b/Linux/project/action_editor/cmd_process.cpp
+index d9a83ef..b5f92ad 100644
+--- a/Linux/project/action_editor/cmd_process.cpp
++++ b/Linux/project/action_editor/cmd_process.cpp
+@@ -7,6 +7,8 @@
+ #include <ncurses.h>
+ #include "cmd_process.h"
+ 
++#include "MotionManager.h"
++
+ using namespace Robot;
+ 
+ 
+@@ -89,7 +91,7 @@ void ReadStep(CM730 *cm730)
+ 				if(value == 1)
+ 				{
+ 					if(cm730->ReadWord(id, MX28::P_GOAL_POSITION_L, &value, 0) == CM730::SUCCESS)
+-						Step.position[id] = value;
++						Step.position[id] = MotionManager::GetInstance()->removeOffset(id, value);
+ 					else
+ 						Step.position[id] = Action::INVALID_BIT_MASK;
+ 				}
+@@ -673,7 +675,8 @@ void SetValue(CM730 *cm730, int value)
+ 				if(!(Step.position[row + 1] & Action::INVALID_BIT_MASK) && !(Step.position[row + 1] & Action::TORQUE_OFF_BIT_MASK))
+ 				{
+ 					int error;
+-					if(cm730->WriteWord(row + 1, MX28::P_GOAL_POSITION_L, value, &error) == CM730::SUCCESS)
++					int raw_value = MotionManager::GetInstance()->applyOffset(row+1, value);
++					if(cm730->WriteWord(row + 1, MX28::P_GOAL_POSITION_L, raw_value, &error) == CM730::SUCCESS)
+ 					{
+ 						if(!(error & CM730::ANGLE_LIMIT))
+ 						{
+@@ -850,6 +853,7 @@ void ToggleTorque(CM730 *cm730)
+ 		int value;
+ 		if(cm730->ReadWord(id, MX28::P_PRESENT_POSITION_L, &value, 0) != CM730::SUCCESS)
+ 			return;
++		value = MotionManager::GetInstance()->removeOffset(id, value);
+ 
+ 		Step.position[id] = value;
+ 		printf("%.4d", value);
+@@ -986,12 +990,18 @@ void PlayCmd(CM730 *cm730, Robot::LinuxMotionTimer *timer)
+ 			if(value == 0)
+ 			{
+ 				if(cm730->ReadWord(id, MX28::P_PRESENT_POSITION_L, &value, 0) == CM730::SUCCESS)
++				{
++					value = MotionManager::GetInstance()->removeOffset(id, value);
+ 					MotionStatus::m_CurrentJoints.SetValue(id, value);
++				}
+ 			}
+ 			else
+ 			{
+ 				if(cm730->ReadWord(id, MX28::P_GOAL_POSITION_L, &value, 0) == CM730::SUCCESS)
++				{
++					value = MotionManager::GetInstance()->removeOffset(id, value);
+ 					MotionStatus::m_CurrentJoints.SetValue(id, value);
++				}
+ 			}
+ 		}
+ 	}
+@@ -1327,8 +1337,9 @@ void GoCmd(CM730 *cm730, int index)
+ 			PrintCmd("Failed to read position");
+ 			return;
+ 		}
++		wStartPosition = MotionManager::GetInstance()->removeOffset(id, wStartPosition);
+ 
+-		wGoalPosition = Page.step[index].position[id];
++		wGoalPosition = MotionManager::GetInstance()->applyOffset(id, Page.step[index].position[id]);
+ 		if( wStartPosition > wGoalPosition )
+ 			wDistance = wStartPosition - wGoalPosition;
+ 		else
+diff --git a/Linux/project/action_editor/main.cpp b/Linux/project/action_editor/main.cpp
+index 7595ee9..093a9d3 100644
+--- a/Linux/project/action_editor/main.cpp
++++ b/Linux/project/action_editor/main.cpp
+@@ -14,6 +14,8 @@
+ #define MOTION_FILE_PATH    "../../../Data/motion_4096.bin"
+ #endif
+ 
++#define INI_FILE_PATH       "../../../Data/config.ini"
++
+ using namespace Robot;
+ 
+ LinuxCM730 linux_cm730("/dev/ttyUSB0");
+@@ -79,6 +81,8 @@ int main(int argc, char *argv[])
+         printf("Initializing Motion Manager failed!\n");
+         return 0;
+     }
++    minIni* ini = new minIni(INI_FILE_PATH);
++    MotionManager::GetInstance()->LoadINISettings(ini);
+     MotionManager::GetInstance()->AddModule((MotionModule*)Action::GetInstance());	
+     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+     motion_timer->Stop();
+diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
+index 80a2804..fd30a6d 100644
+--- a/Linux/project/demo/main.cpp
++++ b/Linux/project/demo/main.cpp
+@@ -88,6 +88,9 @@ int main(void)
+     httpd::ini = ini;
+ 
+     //////////////////// Framework Initialize ////////////////////////////
++    Walking::GetInstance()->LoadINISettings(ini);
++    MotionManager::GetInstance()->LoadINISettings(ini);
++
+     if(MotionManager::GetInstance()->Initialize(&cm730) == false)
+     {
+         linux_cm730.SetPortName(U2D_DEV_NAME1);
+@@ -98,8 +101,6 @@ int main(void)
+         }
+     }
+ 
+-    Walking::GetInstance()->LoadINISettings(ini);
+-
+     MotionManager::GetInstance()->AddModule((MotionModule*)Action::GetInstance());
+     MotionManager::GetInstance()->AddModule((MotionModule*)Head::GetInstance());
+     MotionManager::GetInstance()->AddModule((MotionModule*)Walking::GetInstance());
+@@ -107,8 +108,6 @@ int main(void)
+     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+     motion_timer->Start();
+     /////////////////////////////////////////////////////////////////////
+-    
+-    MotionManager::GetInstance()->LoadINISettings(ini);
+ 
+     int firm_ver = 0;
+     if(cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_VERSION, &firm_ver, 0)  != CM730::SUCCESS)
+diff --git a/Linux/project/offset_tuner/cmd_process.cpp b/Linux/project/offset_tuner/cmd_process.cpp
+index bb20f9d..eb5c659 100644
+--- a/Linux/project/offset_tuner/cmd_process.cpp
++++ b/Linux/project/offset_tuner/cmd_process.cpp
+@@ -150,7 +150,7 @@ void GoToCursor(int col, int row)
+ 
+ void MoveUpCursor()
+ {
+-	if(Col >= GOAL_COL && Col <= D_GAIN_COL)
++	if(Col >= GOAL_COL && Col <= INVERT_COL)
+ 	{
+ 		if( Row > ID_1_ROW )
+ 			GoToCursor(Col, Row-1);
+@@ -159,7 +159,7 @@ void MoveUpCursor()
+ 
+ void MoveDownCursor()
+ {
+-	if(Col >= GOAL_COL && Col <= D_GAIN_COL)
++	if(Col >= GOAL_COL && Col <= INVERT_COL)
+ 	{
+ 		if( Row < ID_20_ROW )
+ 			GoToCursor(Col, Row+1);
+@@ -194,9 +194,12 @@ void MoveLeftCursor()
+         GoToCursor(P_GAIN_COL, Row);
+         break;
+ 
+-	case D_GAIN_COL:
++    case D_GAIN_COL:
+         GoToCursor(I_GAIN_COL, Row);
+         break;
++    case INVERT_COL:
++	GoToCursor(D_GAIN_COL, Row);
++	break;
+ 	}
+ }
+ 
+@@ -231,6 +234,9 @@ void MoveRightCursor()
+     case I_GAIN_COL:
+         GoToCursor(D_GAIN_COL, Row);
+         break;
++    case D_GAIN_COL:
++	GoToCursor(INVERT_COL, Row);
++	break;
+ 	}
+ }
+ 
+@@ -243,7 +249,7 @@ void DrawIntro(CM730 *cm730)
+     for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
+     {
+         wStartPosition = MotionStatus::m_CurrentJoints.GetValue(id);
+-        wGoalPosition = InitPose[id] + MotionManager::GetInstance()->m_Offset[id];
++        wGoalPosition = MotionManager::GetInstance()->applyOffset(id, InitPose[id]);
+         if( wStartPosition > wGoalPosition )
+             wDistance = wStartPosition - wGoalPosition;
+         else
+@@ -302,30 +308,30 @@ void DrawPage()
+ 
+     system("clear");
+     // 80    01234567890123456789012345678901234567890123456789012345678901234567890123456789     //24
+-    printf( "ID: 1(R_SHO_PITCH)  [    ]        [    ]|                                      \n" );//0
+-    printf( "ID: 2(L_SHO_PITCH)  [    ]        [    ]|                                      \n" );//1
+-    printf( "ID: 3(R_SHO_ROLL)   [    ]        [    ]|                                      \n" );//2
+-    printf( "ID: 4(L_SHO_ROLL)   [    ]        [    ]|                                      \n" );//3
+-    printf( "ID: 5(R_ELBOW)      [    ]        [    ]|                                      \n" );//4
+-    printf( "ID: 6(L_ELBOW)      [    ]        [    ]|                                      \n" );//5
+-    printf( "ID: 7(R_HIP_YAW)    [    ]        [    ]|                                      \n" );//6
+-    printf( "ID: 8(L_HIP_YAW)    [    ]        [    ]|                                      \n" );//7
+-    printf( "ID: 9(R_HIP_ROLL)   [    ]        [    ]|                                      \n" );//8
+-    printf( "ID:10(L_HIP_ROLL)   [    ]        [    ]|                                      \n" );//9
+-    printf( "ID:11(R_HIP_PITCH)  [    ]        [    ]|                                      \n" );//0
+-    printf( "ID:12(L_HIP_PITCH)  [    ]        [    ]|                                      \n" );//1
+-    printf( "ID:13(R_KNEE)       [    ]        [    ]|                                      \n" );//2
+-    printf( "ID:14(L_KNEE)       [    ]        [    ]|                                      \n" );//3
+-    printf( "ID:15(R_ANK_PITCH)  [    ]        [    ]|                                      \n" );//4
+-    printf( "ID:16(L_ANK_PITCH)  [    ]        [    ]|                                      \n" );//5
+-    printf( "ID:17(R_ANK_ROLL)   [    ]        [    ]|                                      \n" );//6
+-    printf( "ID:18(L_ANK_ROLL)   [    ]        [    ]|                                      \n" );//7
+-    printf( "ID:19(HEAD_PAN)     [    ]        [    ]|                                      \n" );//8
+-    printf( "ID:20(HEAD_TILT)    [    ]        [    ]|                                      \n" );//9
+-    printf( "                     GOAL  OFFSET MODVAL PRSPOS ERRORS P_GAIN I_GAIN D_GAIN    \n" );//0
++    printf( "ID: 1(R_SHO_PITCH)  [    ]        [    ]|                                            \n" );//0
++    printf( "ID: 2(L_SHO_PITCH)  [    ]        [    ]|                                            \n" );//1
++    printf( "ID: 3(R_SHO_ROLL)   [    ]        [    ]|                                            \n" );//2
++    printf( "ID: 4(L_SHO_ROLL)   [    ]        [    ]|                                            \n" );//3
++    printf( "ID: 5(R_ELBOW)      [    ]        [    ]|                                            \n" );//4
++    printf( "ID: 6(L_ELBOW)      [    ]        [    ]|                                            \n" );//5
++    printf( "ID: 7(R_HIP_YAW)    [    ]        [    ]|                                            \n" );//6
++    printf( "ID: 8(L_HIP_YAW)    [    ]        [    ]|                                            \n" );//7
++    printf( "ID: 9(R_HIP_ROLL)   [    ]        [    ]|                                            \n" );//8
++    printf( "ID:10(L_HIP_ROLL)   [    ]        [    ]|                                            \n" );//9
++    printf( "ID:11(R_HIP_PITCH)  [    ]        [    ]|                                            \n" );//0
++    printf( "ID:12(L_HIP_PITCH)  [    ]        [    ]|                                            \n" );//1
++    printf( "ID:13(R_KNEE)       [    ]        [    ]|                                            \n" );//2
++    printf( "ID:14(L_KNEE)       [    ]        [    ]|                                            \n" );//3
++    printf( "ID:15(R_ANK_PITCH)  [    ]        [    ]|                                            \n" );//4
++    printf( "ID:16(L_ANK_PITCH)  [    ]        [    ]|                                            \n" );//5
++    printf( "ID:17(R_ANK_ROLL)   [    ]        [    ]|                                            \n" );//6
++    printf( "ID:18(L_ANK_ROLL)   [    ]        [    ]|                                            \n" );//7
++    printf( "ID:19(HEAD_PAN)     [    ]        [    ]|                                            \n" );//8
++    printf( "ID:20(HEAD_TILT)    [    ]        [    ]|                                            \n" );//9
++    printf( "                     GOAL  OFFSET MODVAL PRSPOS ERRORS P_GAIN I_GAIN D_GAIN INVERT   \n" );//0
+     printf( "]                                                                              " );  //1
+ 
+-	for(int i=0; i<=7; i++ )
++	for(int i=0; i<=8; i++ )
+ 		DrawStep(i);
+ 
+ 	GoToCursor(old_col, old_row);
+@@ -421,9 +427,17 @@ void DrawStep(int index)
+         }
+         break;
+ 
+-	default:
+-		return;
+-	}
++    case 8:
++	col = INVERT_COL;
++	for( int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++ )
++        {
++            GoToCursor(col, id -1);
++            printf("%4d", MotionManager::GetInstance()->m_invert[id]);
++        }
++        break;
++    default:
++	return;
++    }
+ 
+ 	GoToCursor( old_col, old_row );
+ }
+@@ -530,6 +544,8 @@ int GetValue()
+         return I_Gain[row + 1];
+     else if( col == D_GAIN_COL )
+         return D_Gain[row + 1];
++    else if( col == INVERT_COL )
++        return MotionManager::GetInstance()->m_invert[row + 1];
+ 
+ 	return -1;
+ }
+@@ -553,18 +569,19 @@ void SetValue(CM730 *cm730, int value)
+ 
+ 	if( col == GOAL_COL )
+ 	{
+-        if(value+MotionManager::GetInstance()->m_Offset[row + 1] >= 0 && value+MotionManager::GetInstance()->m_Offset[row + 1] <= MX28::MAX_VALUE)
++		int goalPos = MotionManager::GetInstance()->applyOffset(row+1, value);
++        if(goalPos >= 0 && goalPos <= MX28::MAX_VALUE)
+         {
+             if(!(Step.position[row + 1] & Action::INVALID_BIT_MASK) && !(Step.position[row + 1] & Action::TORQUE_OFF_BIT_MASK))
+             {
+                 int error;
+-                if(cm730->WriteWord(row + 1, MX28::P_GOAL_POSITION_L, value+MotionManager::GetInstance()->m_Offset[row + 1], &error) == CM730::SUCCESS)
++                if(cm730->WriteWord(row + 1, MX28::P_GOAL_POSITION_L, goalPos, &error) == CM730::SUCCESS)
+                 {
+                     if(!(error & CM730::ANGLE_LIMIT))
+                     {
+                         InitPose[row + 1] = value;
+                         printf( "%.4d", value );
+-                        Step.position[row + 1] = value+MotionManager::GetInstance()->m_Offset[row + 1];
++                        Step.position[row + 1] = goalPos;
+                         GoToCursor(MODVAL_COL, row);
+                         printf( "%.4d", Step.position[row + 1] );
+                     }
+@@ -575,26 +592,34 @@ void SetValue(CM730 *cm730, int value)
+ 	else if( col == OFFSET_COL )
+ 	{
+         MotionManager::GetInstance()->m_Offset[row + 1] = value;
++		int goalPos = MotionManager::GetInstance()->applyOffset(row+1, InitPose[row+1]);
+         printf( "%4d ", GetValue() );
+ 
+-        if(InitPose[row + 1] + value >= 0 && InitPose[row + 1] + value <= MX28::MAX_VALUE)
++        if(goalPos >= 0 && goalPos <= MX28::MAX_VALUE)
+         {
+             if(!(Step.position[row + 1] & Action::INVALID_BIT_MASK) && !(Step.position[row + 1] & Action::TORQUE_OFF_BIT_MASK))
+             {
+                 int error;
+-                if(cm730->WriteWord(row + 1, MX28::P_GOAL_POSITION_L, InitPose[row + 1] + value, &error) == CM730::SUCCESS)
++                if(cm730->WriteWord(row + 1, MX28::P_GOAL_POSITION_L, goalPos, &error) == CM730::SUCCESS)
+                 {
+                     if(!(error & CM730::ANGLE_LIMIT))
+                     {
+-                        Step.position[row + 1] = InitPose[row + 1] + value;
++                        Step.position[row + 1] = goalPos;
+                         GoToCursor(MODVAL_COL, row);
+                         printf( "%.4d", Step.position[row + 1] );
+                     }
+                 }
+             }
+         }
++
+         bEdited = true;
+ 	}
++    else if( col == INVERT_COL )
++    {
++	MotionManager::GetInstance()->m_invert[row+1] = value;
++	printf( " %.4d", GetValue());
++	bEdited = true;
++    }
+     else if( col == MODVAL_COL )
+     {
+         if(value >= MX28::MIN_VALUE && value <= MX28::MAX_VALUE)
+diff --git a/Linux/project/offset_tuner/cmd_process.h b/Linux/project/offset_tuner/cmd_process.h
+index 28f8dd5..2ddad3b 100644
+--- a/Linux/project/offset_tuner/cmd_process.h
++++ b/Linux/project/offset_tuner/cmd_process.h
+@@ -19,6 +19,7 @@
+ #define P_GAIN_COL      56
+ #define I_GAIN_COL      63
+ #define D_GAIN_COL      70
++#define INVERT_COL      78
+ 
+ 
+ // Position of Row
+diff --git a/Linux/project/walk_tuner/cmd_process.cpp b/Linux/project/walk_tuner/cmd_process.cpp
+index cdb3b54..f32609b 100644
+--- a/Linux/project/walk_tuner/cmd_process.cpp
++++ b/Linux/project/walk_tuner/cmd_process.cpp
+@@ -140,7 +140,7 @@ void DrawIntro(CM730 *cm730)
+ 	for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
+ 	{
+ 		wStartPosition = MotionStatus::m_CurrentJoints.GetValue(id);
+-		wGoalPosition = Walking::GetInstance()->m_Joint.GetValue(id);
++		wGoalPosition = MotionManager::GetInstance()->applyOffset(id, Walking::GetInstance()->m_Joint.GetValue(id));
+ 		if( wStartPosition > wGoalPosition )
+ 			wDistance = wStartPosition - wGoalPosition;
+ 		else
+diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
+index d3c2949..f859e43 100644
+--- a/Linux/project/walk_tuner/main.cpp
++++ b/Linux/project/walk_tuner/main.cpp
+@@ -56,7 +56,9 @@ int main(int argc, char *argv[])
+         printf("Fail to initialize Motion Manager!\n");
+         return 0;
+     }
++
+     Walking::GetInstance()->LoadINISettings(ini);
++	MotionManager::GetInstance()->LoadINISettings(ini);
+     MotionManager::GetInstance()->AddModule((MotionModule*)Walking::GetInstance());
+     LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
+     motion_timer->Start();
+@@ -180,5 +182,6 @@ int main(int argc, char *argv[])
+     }
+ 
+     DrawEnding();
++
+     return 0;
+ }
+-- 
+1.7.9.5
+

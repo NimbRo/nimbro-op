@@ -1,0 +1,355 @@
+From 88924f5fcad2c7698fdcef8ad75769a1b0848687 Mon Sep 17 00:00:00 2001
+From: Max Schwarz <Max@x-quadraht.de>
+Date: Fri, 5 Oct 2012 15:21:41 +0200
+Subject: [PATCH 10/26] Simple angle estimator
+
+Uses a fused value from accelerometer angle estimation and gyro velocities.
+---
+ Framework/include/AngleEstimator.h      |   51 +++++++++++++++++++++++++++++++
+ Framework/include/MotionManager.h       |    6 ++++
+ Framework/include/MotionStatus.h        |    7 +++--
+ Framework/src/motion/AngleEstimator.cpp |   51 +++++++++++++++++++++++++++++++
+ Framework/src/motion/MotionManager.cpp  |   29 ++++++++++++++++--
+ Framework/src/motion/MotionStatus.cpp   |    7 +++--
+ Linux/build/Makefile                    |   41 +++++++++++++------------
+ Linux/project/walk_tuner/main.cpp       |    2 ++
+ 8 files changed, 168 insertions(+), 26 deletions(-)
+ create mode 100644 Framework/include/AngleEstimator.h
+ create mode 100644 Framework/src/motion/AngleEstimator.cpp
+
+diff --git a/Framework/include/AngleEstimator.h b/Framework/include/AngleEstimator.h
+new file mode 100644
+index 0000000..e158c9d
+--- /dev/null
++++ b/Framework/include/AngleEstimator.h
+@@ -0,0 +1,51 @@
++// Angle estimator based on gyro velocities
++// Author: Max Schwarz <max.schwarz@uni-bonn.de>
++
++#ifndef ANGLEESTIMATOR_H
++#define ANGLEESTIMATOR_H
++#include <string>
++
++class minIni;
++class AngleEstimator
++{
++public:
++	AngleEstimator();
++	virtual ~AngleEstimator();
++
++	void predict(double gyro_dpitch, double gyro_droll, double gyro_dyaw);
++	void update(double acc_x, double acc_y, double acc_z);
++
++	void setAccGain(double acc_gain);
++	void setAccSmoothDecay(double acc_smooth_decay);
++
++	void LoadINISettings(minIni* ini, const std::string& section = "AngleEstimator");
++	void SaveINISettings(minIni* ini, const std::string& section = "AngleEstimator");
++
++	inline double accGain() const
++	{ return m_acc_gain; }
++
++	inline double accSmoothDecay() const
++	{ return m_acc_smooth_decay; }
++
++	inline double roll() const
++	{ return m_roll; }
++
++	inline double pitch() const
++	{ return m_pitch; }
++
++	inline double yaw() const
++	{ return m_yaw; }
++private:
++	double m_acc_gain;
++	double m_acc_smooth_decay;
++
++	double m_acc_x;
++	double m_acc_y;
++	double m_acc_z;
++
++	double m_roll;
++	double m_pitch;
++	double m_yaw;
++};
++
++#endif
+diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
+index 3419f79..3c7a9fe 100644
+--- a/Framework/include/MotionManager.h
++++ b/Framework/include/MotionManager.h
+@@ -15,6 +15,7 @@
+ #include "MotionModule.h"
+ #include "CM730.h"
+ #include "minIni.h"
++#include "AngleEstimator.h"
+ 
+ #define OFFSET_SECTION "Offset"
+ #define INVERT_SECTION "Invert"
+@@ -48,6 +49,8 @@ namespace Robot
+ 		unsigned int m_torqueAdaptionCounter;
+ 		double m_voltageAdaptionFactor;
+ 
++		AngleEstimator m_angleEstimator;
++
+         MotionManager();
+         void adaptTorqueToVoltage();
+ 
+@@ -84,6 +87,9 @@ namespace Robot
+         void LoadINISettings(minIni* ini, const std::string &section);
+         void SaveINISettings(minIni* ini);
+         void SaveINISettings(minIni* ini, const std::string &section);
++
++		inline AngleEstimator* angleEstimator()
++		{ return &m_angleEstimator; }
+ 	};
+ }
+ 
+diff --git a/Framework/include/MotionStatus.h b/Framework/include/MotionStatus.h
+index a13bc67..626f34c 100644
+--- a/Framework/include/MotionStatus.h
++++ b/Framework/include/MotionStatus.h
+@@ -29,11 +29,14 @@ namespace Robot
+ 	    static const int FALLEN_MAX_COUNT   = 30;
+ 
+ 		static JointData m_CurrentJoints;
+-		static int FB_GYRO;
+-		static int RL_GYRO;
++		static double FB_GYRO;
++		static double RL_GYRO;
+ 		static int FB_ACCEL;
+ 		static int RL_ACCEL;
+ 
++		static double ANGLE_PITCH;  //!< pitch angle in radians
++		static double ANGLE_ROLL;   //!< roll angle in radians
++
+ 		static int BUTTON;
+ 		static int FALLEN;
+ 	};
+diff --git a/Framework/src/motion/AngleEstimator.cpp b/Framework/src/motion/AngleEstimator.cpp
+new file mode 100644
+index 0000000..ae22825
+--- /dev/null
++++ b/Framework/src/motion/AngleEstimator.cpp
+@@ -0,0 +1,51 @@
++// Angle estimator based on gyro velocities
++// Author: Max Schwarz <max.schwarz@uni-bonn.de>
++
++#include "AngleEstimator.h"
++#include <minIni.h>
++
++#include <math.h>
++
++AngleEstimator::AngleEstimator()
++ : m_acc_gain(0.01)
++ , m_acc_smooth_decay(0.01)
++{
++}
++
++AngleEstimator::~AngleEstimator()
++{
++}
++
++void AngleEstimator::predict(double gyro_dpitch, double gyro_droll, double gyro_dyaw)
++{
++	m_pitch += gyro_dpitch;
++	m_roll  += gyro_droll;
++}
++
++void AngleEstimator::update(double x, double y, double z)
++{
++	m_acc_x = (1.0 - m_acc_smooth_decay) * m_acc_x + m_acc_smooth_decay * x;
++	m_acc_y = (1.0 - m_acc_smooth_decay) * m_acc_y + m_acc_smooth_decay * y;
++	m_acc_z = (1.0 - m_acc_smooth_decay) * m_acc_z + m_acc_smooth_decay * z;
++
++	double acc_roll = atan2(m_acc_x, m_acc_z);
++	double acc_pitch = atan2(-m_acc_y, sqrt(m_acc_x*m_acc_x+m_acc_z*m_acc_z));
++
++	m_pitch = (1.0 - m_acc_gain) * m_pitch + m_acc_gain * acc_pitch;
++	m_roll = (1.0 - m_acc_gain) * m_roll   + m_acc_gain * acc_roll;
++}
++
++void AngleEstimator::LoadINISettings(minIni* ini, const std::string& section)
++{
++	double value;
++	if((value = ini->getd(section, "acc_smooth_decay", -1)) >= 0)
++		m_acc_smooth_decay = value;
++	if((value = ini->getd(section, "acc_gain", -1)) >= 0)
++		m_acc_gain = value;
++}
++
++void AngleEstimator::SaveINISettings(minIni* ini, const std::string& section)
++{
++	ini->put(section, "acc_smooth_decay", m_acc_smooth_decay);
++	ini->put(section, "acc_gain", m_acc_gain);
++}
+diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
+index 4837b5d..308f2bb 100644
+--- a/Framework/src/motion/MotionManager.cpp
++++ b/Framework/src/motion/MotionManager.cpp
+@@ -191,6 +191,8 @@ void MotionManager::LoadINISettings(minIni* ini, const std::string &section)
+         if((ivalue = ini->geti(section, key, INVALID_VALUE)) != INVALID_VALUE)  m_Offset[i] = ivalue;
+         if((ivalue = ini->geti(INVERT_SECTION, key, INVALID_VALUE)) != INVALID_VALUE) m_invert[i] = ivalue;
+     }
++
++    m_angleEstimator.LoadINISettings(ini, section + "_angle");
+ }
+ void MotionManager::SaveINISettings(minIni* ini)
+ {
+@@ -205,6 +207,8 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+         ini->put(section, key, m_Offset[i]);
+ 	ini->put(INVERT_SECTION, key, (int)m_invert[i]);
+     }
++
++    m_angleEstimator.SaveINISettings(ini, section + "_angle");
+ }
+ 
+ #define GYRO_WINDOW_SIZE    100
+@@ -289,12 +293,33 @@ void MotionManager::Process()
+         static int buf_idx = 0;
+         if(m_CM730->m_BulkReadData[CM730::ID_CM].error == 0)
+         {
+-            MotionStatus::FB_GYRO = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_Y_L) - m_FBGyroCenter;
+-            MotionStatus::RL_GYRO = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_X_L) - m_RLGyroCenter;
++            const double GYRO_ALPHA = 0.1;
++            int gyroValFB = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_Y_L) - m_FBGyroCenter;
++            int gyroValRL = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_GYRO_X_L) - m_RLGyroCenter;
++
++            MotionStatus::FB_GYRO = (1.0 - GYRO_ALPHA) * MotionStatus::FB_GYRO + GYRO_ALPHA * gyroValFB;
++            MotionStatus::RL_GYRO = (1.0 - GYRO_ALPHA) * MotionStatus::RL_GYRO + GYRO_ALPHA * gyroValRL;;
+             MotionStatus::RL_ACCEL = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_X_L);
+             MotionStatus::FB_ACCEL = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_Y_L);
++
+             fb_array[buf_idx] = MotionStatus::FB_ACCEL;
+             if(++buf_idx >= ACCEL_WINDOW_SIZE) buf_idx = 0;
++
++            const double TICKS_TO_RADIANS_PER_STEP = (M_PI/180.0) * 250.0/512.0 * (0.001 * MotionModule::TIME_UNIT);
++            m_angleEstimator.predict(
++               -TICKS_TO_RADIANS_PER_STEP * gyroValFB,
++               TICKS_TO_RADIANS_PER_STEP * gyroValRL,
++               0
++            );
++
++            m_angleEstimator.update(
++                (m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_X_L) - 512),
++                (m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_Y_L) - 512),
++                (m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_Z_L) - 512)
++            );
++
++            MotionStatus::ANGLE_PITCH = m_angleEstimator.pitch();
++            MotionStatus::ANGLE_ROLL  = m_angleEstimator.roll();
+         }
+ 
+         int sum = 0, avr = 512;
+diff --git a/Framework/src/motion/MotionStatus.cpp b/Framework/src/motion/MotionStatus.cpp
+index ece9338..7a0f827 100644
+--- a/Framework/src/motion/MotionStatus.cpp
++++ b/Framework/src/motion/MotionStatus.cpp
+@@ -10,10 +10,13 @@
+ using namespace Robot;
+ 
+ JointData MotionStatus::m_CurrentJoints;
+-int MotionStatus::FB_GYRO(0);
+-int MotionStatus::RL_GYRO(0);
++double MotionStatus::FB_GYRO(0);
++double MotionStatus::RL_GYRO(0);
+ int MotionStatus::FB_ACCEL(0);
+ int MotionStatus::RL_ACCEL(0);
+ 
+ int MotionStatus::BUTTON(0);
+ int MotionStatus::FALLEN(0);
++
++double MotionStatus::ANGLE_PITCH(0);
++double MotionStatus::ANGLE_ROLL(0);
+diff --git a/Linux/build/Makefile b/Linux/build/Makefile
+index b608861..a02b1df 100644
+--- a/Linux/build/Makefile
++++ b/Linux/build/Makefile
+@@ -1,11 +1,11 @@
+-###############################################################
+-#
+-# Purpose: Makefile for "DARwIn Linux Framework"
+-# Author.: robotis
+-# Version: 0.1
+-# License: GPL
+-#
+-###############################################################
++###############################################################
++#
++# Purpose: Makefile for "DARwIn Linux Framework"
++# Author.: robotis
++# Version: 0.1
++# License: GPL
++#
++###############################################################
+ 
+ CC = g++
+ AR = ar
+@@ -13,13 +13,13 @@ ARFLAGS = cr
+ 
+ TARGET = darwin.a
+ 
+-INCLUDE_DIRS = -I../include -I../../Framework/include
+-
+-CXXFLAGS += -O2 -DLINUX -Wall -g -shared $(INCLUDE_DIRS)
+-#CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall -shared $(INCLUDE_DIRS)
++INCLUDE_DIRS = -I../include -I../../Framework/include
++
++CXXFLAGS += -O2 -DLINUX -Wall -g -shared $(INCLUDE_DIRS)
++#CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall -shared $(INCLUDE_DIRS)
+ LFLAGS += -lpthread -ldl
+ 
+-OBJS =  ../../Framework/src/CM730.o     	\
++OBJS =  ../../Framework/src/CM730.o     	\
+         ../../Framework/src/math/Matrix.o   \
+         ../../Framework/src/math/Plane.o    \
+         ../../Framework/src/math/Point.o    \
+@@ -28,18 +28,19 @@ OBJS =  ../../Framework/src/CM730.o     	\
+         ../../Framework/src/motion/Kinematics.o 	\
+         ../../Framework/src/motion/MotionManager.o  \
+         ../../Framework/src/motion/MotionStatus.o   \
++        ../../Framework/src/motion/AngleEstimator.o \
+         ../../Framework/src/motion/modules/Action.o \
+         ../../Framework/src/motion/modules/Head.o   \
+         ../../Framework/src/motion/modules/Walking.o\
+         ../../Framework/src/vision/BallFollower.o   \
+-        ../../Framework/src/vision/BallTracker.o    \
++        ../../Framework/src/vision/BallTracker.o    \
+         ../../Framework/src/vision/ColorFinder.o    \
+         ../../Framework/src/vision/Image.o  		\
+-        ../../Framework/src/vision/ImgProcess.o 	\
+-        ../../Framework/src/minIni/minIni.o	\
+-        streamer/httpd.o           \
+-        streamer/jpeg_utils.o      \
+-        streamer/mjpg_streamer.o   \
++        ../../Framework/src/vision/ImgProcess.o 	\
++        ../../Framework/src/minIni/minIni.o	\
++        streamer/httpd.o           \
++        streamer/jpeg_utils.o      \
++        streamer/mjpg_streamer.o   \
+         LinuxActionScript.o   \
+         LinuxCamera.o   \
+         LinuxCM730.o    \
+@@ -52,5 +53,5 @@ $(TARGET): $(OBJS)
+ 
+ all: $(TARGET)
+ 
+-clean:
++clean:
+ 	rm -f $(OBJS) ../lib/$(TARGET)
+diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
+index f859e43..3a6c5f2 100644
+--- a/Linux/project/walk_tuner/main.cpp
++++ b/Linux/project/walk_tuner/main.cpp
+@@ -67,6 +67,8 @@ int main(int argc, char *argv[])
+     DrawIntro(&cm730);
+     MotionManager::GetInstance()->SetEnable(true);
+ 
++    MotionManager::GetInstance()->ResetGyroCalibration();
++
+     while(1)
+     {
+         int ch = _getch();
+-- 
+1.7.9.5
+

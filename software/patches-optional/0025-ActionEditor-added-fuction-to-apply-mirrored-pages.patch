@@ -1,0 +1,98 @@
+From 19c078f4164e6606a155fb70fae2063d79821760 Mon Sep 17 00:00:00 2001
+From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Mon, 24 Sep 2012 15:44:57 +0000
+Subject: [PATCH 25/26] ActionEditor: added fuction to apply mirrored pages
+
+Signed-off-by: sebastian <sebastian>
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@174 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ Linux/project/action_editor/cmd_process.cpp |   39 ++++++++++++++++++++++++++-
+ Linux/project/action_editor/cmd_process.h   |    1 +
+ Linux/project/action_editor/main.cpp        |    2 ++
+ 3 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/Linux/project/action_editor/cmd_process.cpp b/Linux/project/action_editor/cmd_process.cpp
+index b5f92ad..ba9c96d 100644
+--- a/Linux/project/action_editor/cmd_process.cpp
++++ b/Linux/project/action_editor/cmd_process.cpp
+@@ -68,7 +68,7 @@ void set_stdin(void)
+ {
+ 	tcgetattr(0,&oldterm);
+ 	new_term = oldterm;
+-	new_term.c_lflag &= ~(ICANON | ECHO | ISIG); // ÀÇ¹Ì´Â struct termios¸¦ Ã£À¸¸é µÊ.
++	new_term.c_lflag &= ~(ICANON | ECHO | ISIG); // Ã€Ç¹Ì´Ã‚ struct termiosÂ¸Â¦ Ã£8Â¸Ã© ÂµÃŠ.
+ 	new_term.c_cc[VMIN] = 1;
+ 	new_term.c_cc[VTIME] = 0;
+ 	tcsetattr(0, TCSANOW, &new_term);
+@@ -1294,6 +1294,43 @@ void CopyCmd(int index)
+ 		PrintCmd("Invalid page index");
+ }
+ 
++
++struct MirrorTableEntry{
++	int id_from;
++	int id_to;
++};
++
++const MirrorTableEntry MIRROR_TABLE[] = {
++	{JointData::ID_L_ELBOW, JointData::ID_R_ELBOW},
++	{JointData::ID_L_ANKLE_PITCH, JointData::ID_R_ANKLE_PITCH},
++	{JointData::ID_L_HIP_PITCH, JointData::ID_R_HIP_PITCH},
++	{JointData::ID_L_HIP_ROLL, JointData::ID_R_HIP_ROLL},
++	{JointData::ID_L_HIP_YAW, JointData::ID_R_HIP_YAW},
++	{JointData::ID_L_KNEE, JointData::ID_R_KNEE},
++	{JointData::ID_L_SHOULDER_PITCH, JointData::ID_R_SHOULDER_PITCH},
++	{JointData::ID_L_SHOULDER_ROLL, JointData::ID_R_SHOULDER_ROLL},
++	{JointData::ID_L_ANKLE_ROLL, JointData::ID_R_ANKLE_ROLL},
++	{-1, -1}
++};
++
++void MirrorCmd(){
++
++	for(int i = 0; i < 7; i++){
++		for(int j = 0; MIRROR_TABLE[j].id_from != -1; j++){
++			int tempVar = Page.step[i].position[MIRROR_TABLE[j].id_to];
++			short unsigned int *valFrom = &Page.step[i].position[MIRROR_TABLE[j].id_from];
++			short unsigned int *valTo = &Page.step[i].position[MIRROR_TABLE[j].id_to];
++
++			*valTo = 2048 + ((*valFrom - 2048) * -1);
++			*valFrom = 2048 + ((tempVar - 2048) * -1);
++
++
++		}
++	}
++	DrawPage();
++	bEdited = true;
++}
++
+ void NewCmd()
+ {
+ 	Action::GetInstance()->ResetPage(&Page);
+diff --git a/Linux/project/action_editor/cmd_process.h b/Linux/project/action_editor/cmd_process.h
+index 703f19a..531f3fc 100644
+--- a/Linux/project/action_editor/cmd_process.h
++++ b/Linux/project/action_editor/cmd_process.h
+@@ -109,5 +109,6 @@ void NewCmd();
+ void GoCmd(Robot::CM730 *cm730, int index);
+ void SaveCmd();
+ void NameCmd();
++void MirrorCmd();
+ 
+ #endif
+diff --git a/Linux/project/action_editor/main.cpp b/Linux/project/action_editor/main.cpp
+index 093a9d3..d370ac7 100644
+--- a/Linux/project/action_editor/main.cpp
++++ b/Linux/project/action_editor/main.cpp
+@@ -269,6 +269,8 @@ int main(int argc, char *argv[])
+                         SaveCmd();
+                     else if(strcmp(cmd, "name") == 0)
+                         NameCmd();
++                    else if(strcmp(cmd, "mirror") == 0)
++                    	MirrorCmd();
+                     else
+                         PrintCmd("Bad command! please input 'help'");
+                 }
+-- 
+1.7.9.5
+

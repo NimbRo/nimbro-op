@@ -1,0 +1,118 @@
+From b0028ff60b182e98c443d13090862337543bf975 Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Wed, 3 Oct 2012 15:31:43 +0000
+Subject: [PATCH 20/26] demo: tweaked for IROS
+
+git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@205 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
+---
+ Linux/project/demo/StatusCheck.cpp |   26 +++++++++++++++-----------
+ Linux/project/demo/main.cpp        |   13 +++----------
+ 2 files changed, 18 insertions(+), 21 deletions(-)
+
+diff --git a/Linux/project/demo/StatusCheck.cpp b/Linux/project/demo/StatusCheck.cpp
+index df5e859..e2e9217 100644
+--- a/Linux/project/demo/StatusCheck.cpp
++++ b/Linux/project/demo/StatusCheck.cpp
+@@ -24,7 +24,7 @@ int StatusCheck::m_is_started   = 0;
+ 
+ void StatusCheck::Check(CM730 &cm730)
+ {
+-    if(m_cur_mode == SOCCER && m_is_started == 1)
++    if(m_is_started == 1)
+     {
+         FallProtManagerState side;
+         do
+@@ -70,8 +70,12 @@ void StatusCheck::Check(CM730 &cm730)
+                     if(!Action::GetInstance()->IsRunning())
+                     {
+                         printf("Action finished\n");
+-                        Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+-                        Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
++
++                        if(m_cur_mode == SOCCER)
++                        {
++                            Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
++                            Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
++                        }
+                         MotionStatus::FALL_CLIENT_STATE = CS_RUNNING;
+                     }
+                     break;
+@@ -98,8 +102,11 @@ void StatusCheck::Check(CM730 &cm730)
+             while(Walking::GetInstance()->IsRunning() == 1) usleep(8000);
+             Action::GetInstance()->m_Joint.SetEnableBody(true, true);
+ 
+-            while(Action::GetInstance()->Start(15) == false) usleep(8000);
+-            while(Action::GetInstance()->IsRunning() == true) usleep(8000);
++            if(m_cur_mode != VISION)
++            {
++                while(Action::GetInstance()->Start(15) == false) usleep(8000);
++                while(Action::GetInstance()->IsRunning() == true) usleep(8000);
++            }
+         }
+         else
+         {
+@@ -175,13 +182,14 @@ void StatusCheck::Check(CM730 &cm730)
+             {
+                 MotionManager::GetInstance()->Reinitialize();
+                 MotionManager::GetInstance()->SetEnable(true);
++
+                 m_is_started = 1;
+                 LinuxActionScript::PlayMP3("../../../Data/mp3/Start motion demonstration.mp3");
+ 
+                 // Joint Enable..
+                 Action::GetInstance()->m_Joint.SetEnableBody(true, true);
+ 
+-                Action::GetInstance()->Start(1);
++                Action::GetInstance()->Start(9);
+                 while(Action::GetInstance()->IsRunning() == true) usleep(8000);
+             }
+             else if(m_cur_mode == VISION)
+@@ -191,11 +199,7 @@ void StatusCheck::Check(CM730 &cm730)
+                 m_is_started = 1;
+                 LinuxActionScript::PlayMP3("../../../Data/mp3/Start vision processing demonstration.mp3");
+ 
+-                // Joint Enable...
+-                Action::GetInstance()->m_Joint.SetEnableBody(true, true);
+-
+-                Action::GetInstance()->Start(1);
+-                while(Action::GetInstance()->IsRunning() == true) usleep(8000);
++                Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
+             }
+         }
+         else
+diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
+index a91ca59..d7c7b91 100644
+--- a/Linux/project/demo/main.cpp
++++ b/Linux/project/demo/main.cpp
+@@ -160,7 +160,7 @@ int main(void)
+         LinuxCamera::GetInstance()->CaptureFrame();
+         memcpy(rgb_output->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageData, LinuxCamera::GetInstance()->fbuffer->m_RGBFrame->m_ImageSize);
+ 
+-        if(StatusCheck::m_cur_mode == READY || StatusCheck::m_cur_mode == VISION)
++        if(StatusCheck::m_cur_mode == READY)
+         {
+             ball_pos = ball_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame);
+             red_pos = red_finder->GetPosition(LinuxCamera::GetInstance()->fbuffer->m_HSVFrame);
+@@ -291,17 +291,10 @@ int main(void)
+             }
+             break;
+         case MOTION:
+-            if(LinuxActionScript::m_is_running == 0)
+-                LinuxActionScript::ScriptStart(SCRIPT_FILE_PATH);
++            usleep(100*1000);
+             break;
+         case VISION:
+-            int detected_color = 0;
+-            detected_color |= (red_pos.X == -1)? 0 : VisionMode::RED;
+-            detected_color |= (yellow_pos.X == -1)? 0 : VisionMode::YELLOW;
+-            detected_color |= (blue_pos.X == -1)? 0 : VisionMode::BLUE;
+-
+-            if(Action::GetInstance()->IsRunning() == 0)
+-                VisionMode::Play(detected_color);
++            follower.Process(tracker.ball_position);
+             break;
+         }
+     }
+-- 
+1.7.9.5
+

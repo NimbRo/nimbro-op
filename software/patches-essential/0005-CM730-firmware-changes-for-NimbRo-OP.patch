@@ -1,0 +1,283 @@
+From 1bd936704aace65d02435461e6b7f0c1172117e0 Mon Sep 17 00:00:00 2001
+From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
+Date: Tue, 24 Jul 2012 13:08:54 +0000
+Subject: [PATCH 05/26] CM730 firmware changes for NimbRo-OP
+
+Changelist:
+ - firmware: changed toolchain prefix
+ - firmware: adapted voltage thresholds for 4 cells
+ - firmware: tolerate voltages below 13.0V (power supply)
+ - firmware: fixed timer interrupt bug
+ - firmware: enable higher resolution on gyro
+ - firmware: switch dxl torque off on startup/reset
+---
+ firmware/CM730_APP/inc/CM_DXL_COM.h   |    2 ++
+ firmware/CM730_APP/src/CM_DXL_COM.c   |   26 ++++++++++++++++++++++++++
+ firmware/CM730_APP/src/isr.c          |   14 +++++++-------
+ firmware/CM730_APP/src/main.c         |   13 ++++++++++---
+ firmware/CM730_APP/src/stm32f10x_it.c |    9 +++++----
+ firmware/CM730_HW/inc/usart.h         |    2 +-
+ firmware/CM730_HW/src/gyro_acc.c      |    2 +-
+ firmware/CM730_HW/src/usart.c         |   24 ++++++++++++++++--------
+ firmware/Makefile                     |    2 +-
+ 9 files changed, 69 insertions(+), 25 deletions(-)
+
+diff --git a/firmware/CM730_APP/inc/CM_DXL_COM.h b/firmware/CM730_APP/inc/CM_DXL_COM.h
+index 519e7a8..82edb47 100644
+--- a/firmware/CM730_APP/inc/CM_DXL_COM.h
++++ b/firmware/CM730_APP/inc/CM_DXL_COM.h
+@@ -283,6 +283,8 @@ extern volatile byte gbLEDPwm;
+ 
+ void Process(void);
+ 
++void TorqueOff();
++
+ 
+ #endif /* _DYNAMIXEL_CM_DXL_COM_HEADER */
+ 
+diff --git a/firmware/CM730_APP/src/CM_DXL_COM.c b/firmware/CM730_APP/src/CM_DXL_COM.c
+index 2c34671..841288e 100644
+--- a/firmware/CM730_APP/src/CM_DXL_COM.c
++++ b/firmware/CM730_APP/src/CM_DXL_COM.c
+@@ -344,6 +344,28 @@ void ProcessAfterWriting(void);
+ 
+ u8 gbDxlPwr;
+ 
++void TorqueOff(void)
++{
++	gbTxD0BufferReadPointer = gbTxD0BufferWritePointer = 0;
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = 0xff;
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = 0xff;
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = 0xFE; // Broadcast
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = 4;
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = INST_WRITE;
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = 0x18; // Torque enable
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = 0x00; // off
++	gbpTxD0Buffer[gbTxD0BufferWritePointer++] = ~((u8)(0xFE + 4 + INST_WRITE + 0x18 + 0x00));
++
++	if ( GPIO_ReadOutputDataBit(PORT_ENABLE_TXD, PIN_ENABLE_TXD) == Bit_RESET) {
++		//TxDString(USART_ZIGBEE,"\r\n TEST0");
++		//if (TXD0_FINISH) {
++		GPIO_ResetBits(PORT_ENABLE_RXD, PIN_ENABLE_RXD);	// RX Disable
++		GPIO_SetBits(PORT_ENABLE_TXD, PIN_ENABLE_TXD);	// TX Enable
++
++		USART_SendData(USART1, gbpTxD0Buffer[gbTxD0BufferReadPointer++]);
++		USART_ITConfig(USART1, USART_IT_TC, ENABLE);
++	}
++}
+ 
+ void Process(void)
+ {
+@@ -934,6 +956,10 @@ void ProcessAfterWriting(void)
+ 
+ 		case	P_DYNAMIXEL_POWER:
+ 				dxl_set_power(GB_DYNAMIXEL_POWER);
++				if(GB_DYNAMIXEL_POWER == ON)
++				{
++					enableDXLForwarding();
++				}
+ 				gbDxlPwr = GB_DYNAMIXEL_POWER;
+ 		break;
+ 		case	P_LED_PANNEL:
+diff --git a/firmware/CM730_APP/src/isr.c b/firmware/CM730_APP/src/isr.c
+index 39c4bcd..f66beef 100644
+--- a/firmware/CM730_APP/src/isr.c
++++ b/firmware/CM730_APP/src/isr.c
+@@ -25,12 +25,12 @@
+ #define BLINK_COUNT		10 //(0.5s * 10 = 5s)
+ #define BLINK_TIME		1042 //(480us * 1042 = 0.5s)
+ 
+-#define VOLTAGE_LEVEL_5     121     //12.05V
+-#define VOLTAGE_LEVEL_4     116     //11.62V
+-#define VOLTAGE_LEVEL_3     114     //11.40V
+-#define VOLTAGE_LEVEL_2     112     //11.25V
+-#define VOLTAGE_LEVEL_1     110     //11.05V
+-#define VOLTAGE_LEVEL_0     106     //10.64V
++#define VOLTAGE_LEVEL_5     161     //12.05V
++#define VOLTAGE_LEVEL_4     155     //11.62V
++#define VOLTAGE_LEVEL_3     152     //11.40V
++#define VOLTAGE_LEVEL_2     149     //11.25V
++#define VOLTAGE_LEVEL_1     147     //11.05V
++#define VOLTAGE_LEVEL_0     141     //10.64V
+ #define LOW_BATTERY_COUNT       20  //
+ 
+ #define	SOUND_LOW_VOLTAGE_LENGTH    255
+@@ -57,7 +57,7 @@ void ISR_BATTERY_CHECK(void)
+ 	static byte bLowBatteryCount;
+ 	GB_ADC0_VOLTAGE = getVoltage();
+ 
+-	if (  GB_ADC0_VOLTAGE <= VOLTAGE_LEVEL_1 ) {
++	if (  GB_ADC0_VOLTAGE <= VOLTAGE_LEVEL_1 && GB_ADC0_VOLTAGE > 130) {
+ 		if (bLowBatteryCount < LOW_BATTERY_COUNT) bLowBatteryCount++;
+ 	}
+ 	else {
+diff --git a/firmware/CM730_APP/src/main.c b/firmware/CM730_APP/src/main.c
+index f560a99..7933992 100644
+--- a/firmware/CM730_APP/src/main.c
++++ b/firmware/CM730_APP/src/main.c
+@@ -48,8 +48,7 @@ int main(void)
+ 
+ 	System_Configuration();
+ 
+-	dxl_set_power(OFF);
+-	//dxl_set_power(ON);
++	dxl_set_power(ON);
+ 	Zigbee_SetState(ON);
+ 	//gbDxlPwr = ON;
+ 
+@@ -136,8 +135,14 @@ int main(void)
+     gbLEDBlinkCounter = 8;
+ 
+ 
++	for (bCount = 0; bCount < 3; bCount++) {
++		LED_SetState(LED_MANAGE|LED_EDIT|LED_PLAY, ON);
++		mDelay(50);
++		LED_SetState(LED_MANAGE|LED_EDIT|LED_PLAY, OFF);
++		mDelay(50);
++	}
+ 
+-
++	TorqueOff();
+ 
+ 	for (bCount = 0; bCount < 3; bCount++) {
+ 		LED_SetState(LED_MANAGE|LED_EDIT|LED_PLAY, ON);
+@@ -145,6 +150,8 @@ int main(void)
+ 		LED_SetState(LED_MANAGE|LED_EDIT|LED_PLAY, OFF);
+ 		mDelay(50);
+ 	}
++
++	dxl_set_power(OFF);
+ /*
+ 	dxl_set_power(1);
+ 	gbDxlPwr = 1;
+diff --git a/firmware/CM730_APP/src/stm32f10x_it.c b/firmware/CM730_APP/src/stm32f10x_it.c
+index 8ac8324..af3faa0 100644
+--- a/firmware/CM730_APP/src/stm32f10x_it.c
++++ b/firmware/CM730_APP/src/stm32f10x_it.c
+@@ -38,7 +38,6 @@ extern vu16 CCR3_Val;       // from system_init.c
+ extern vu16 CCR4_Val;       // from system_init.c
+ 
+ 
+-vu32 capture = 0;
+ vu8 Counter = 0;
+ vu16 gwCounter1 = 0;
+ 
+@@ -478,6 +477,8 @@ void TIM1_CC_IRQHandler(void)
+ {
+ }
+ 
++extern u8 ReadButton(void);
++
+ /*******************************************************************************
+ * Function Name  : TIM2_IRQHandler
+ * Description    : This function handles TIM2 global interrupt request.
+@@ -487,14 +488,14 @@ void TIM1_CC_IRQHandler(void)
+ *******************************************************************************/
+ void TIM2_IRQHandler(void)
+ {
+-	static b1Sec=0;
++	static byte b1Sec=0;
+ 
+ 	if (TIM_GetITStatus(TIM2, TIM_IT_CC4) != RESET) // 120us, 8000Hz
+ 	{
+ 		TIM_ClearITPendingBit(TIM2, TIM_IT_CC4);
+ 		ISR_ADC();
+-		capture = TIM_GetCapture4(TIM2);
+-		TIM_SetCompare4(TIM2, capture + CCR4_Val);
++        TIM_SetCounter(TIM2, 0);
++        TIM_SetCompare4(TIM2, CCR4_Val);
+ 
+ 
+ 		if( !( gwCounter1 & 7 ) ) // 840us
+diff --git a/firmware/CM730_HW/inc/usart.h b/firmware/CM730_HW/inc/usart.h
+index 3f5c008..c197cb4 100644
+--- a/firmware/CM730_HW/inc/usart.h
++++ b/firmware/CM730_HW/inc/usart.h
+@@ -32,7 +32,7 @@ void __ISR_USART_DXL(void);
+ void __ISR_USART_ZIGBEE(void);
+ void __ISR_USART_PC(void);
+ 
+-
++void enableDXLForwarding();
+ 
+ #endif /* __USART_H */
+ 
+diff --git a/firmware/CM730_HW/src/gyro_acc.c b/firmware/CM730_HW/src/gyro_acc.c
+index 8e6bbd3..97f572c 100644
+--- a/firmware/CM730_HW/src/gyro_acc.c
++++ b/firmware/CM730_HW/src/gyro_acc.c
+@@ -263,7 +263,7 @@ void Gyro_Configuration(void)
+ 	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_RXNE) == RESET);
+ 	Push_SPI_Data( SPI_I2S_ReceiveData(SPI2) );
+ 
+-	SPI_I2S_SendData(SPI2,0x20);	// WRITE 0XFF TO CTRL_REG1(0X20). OUTPUT DATA RATE 800HZ, POWER : NORMAL, XYZ ENABLE.
++	SPI_I2S_SendData(SPI2,0x00);	// WRITE 0XFF TO CTRL_REG1(0X20). OUTPUT DATA RATE 800HZ, POWER : NORMAL, XYZ ENABLE.
+ 	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_TXE) == RESET);
+ 	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_RXNE) == RESET);
+ 	Push_SPI_Data( SPI_I2S_ReceiveData(SPI2) );
+diff --git a/firmware/CM730_HW/src/usart.c b/firmware/CM730_HW/src/usart.c
+index 8f8b057..3c5bfc8 100644
+--- a/firmware/CM730_HW/src/usart.c
++++ b/firmware/CM730_HW/src/usart.c
+@@ -20,6 +20,8 @@
+ /* Private macro -------------------------------------------------------------*/
+ /* Private variables ---------------------------------------------------------*/
+ 
++volatile u8 gbDXLForwarding = 0;
++
+ // usart buffer
+ /*
+ volatile u16 gwpUSART_DXL_Buffer[USART_BUFFER_SIZE+1];
+@@ -133,16 +135,18 @@ void __ISR_USART_PC(void)
+ 		//if (TXD0_READY) {
+ 
+ 
+-					//if( GB_DYNAMIXEL_POWER)
+-		if ( GPIO_ReadOutputDataBit(PORT_ENABLE_TXD, PIN_ENABLE_TXD) == Bit_RESET) {
+-			//if (TXD0_FINISH) {
+-			GPIO_ResetBits(PORT_ENABLE_RXD, PIN_ENABLE_RXD);	// RX Disable
+-			GPIO_SetBits(PORT_ENABLE_TXD, PIN_ENABLE_TXD);	// TX Enable
++		if(gbDXLForwarding)
++		{
++			if ( GPIO_ReadOutputDataBit(PORT_ENABLE_TXD, PIN_ENABLE_TXD) == Bit_RESET) {
++				//if (TXD0_FINISH) {
++				GPIO_ResetBits(PORT_ENABLE_RXD, PIN_ENABLE_RXD);	// RX Disable
++				GPIO_SetBits(PORT_ENABLE_TXD, PIN_ENABLE_TXD);	// TX Enable
+ 
+-			USART_SendData(USART1, gbpTxD0Buffer[gbTxD0BufferReadPointer++]);
+-			//gbTxD0BufferReadPointer &= 0x3FF;
+-			USART_ITConfig(USART1, USART_IT_TC, ENABLE);
++				USART_SendData(USART1, gbpTxD0Buffer[gbTxD0BufferReadPointer++]);
++				//gbTxD0BufferReadPointer &= 0x3FF;
++				USART_ITConfig(USART1, USART_IT_TC, ENABLE);
+ 
++			}
+ 		}
+ 
+ 	}
+@@ -238,5 +242,9 @@ void __ISR_USART_DXL(void)
+ 
+ }
+ 
++void enableDXLForwarding(void)
++{
++	gbDXLForwarding = 1;
++}
+ 
+ /******************* (C) COPYRIGHT 2010 ROBOTIS *****END OF FILE****/
+diff --git a/firmware/Makefile b/firmware/Makefile
+index 68f9d93..5d40879 100644
+--- a/firmware/Makefile
++++ b/firmware/Makefile
+@@ -6,7 +6,7 @@ INCLUDE_DIRS = -I. -Istm32f10x_lib/inc -ICM730_HW/inc -ICM730_APP/inc
+ #INCLUDE_DIRS = -I.
+ LIBRARY_DIRS = -Lstm32f10x_lib
+ 
+-TCHAIN_PREFIX=arm-eabi-
++TCHAIN_PREFIX=arm-none-eabi-
+ 
+ 
+ CC = $(TCHAIN_PREFIX)gcc
+-- 
+1.7.9.5
+

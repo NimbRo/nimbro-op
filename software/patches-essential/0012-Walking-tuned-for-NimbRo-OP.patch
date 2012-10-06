@@ -1,0 +1,988 @@
+From a90985d6a4e3bd5259dd6ffc22088f899144ea41 Mon Sep 17 00:00:00 2001
+From: Max Schwarz <Max@x-quadraht.de>
+Date: Sat, 6 Oct 2012 15:30:19 +0200
+Subject: [PATCH 12/26] Walking: tuned for NimbRo-OP
+
+Changes:
+ - general parameter tuning
+ - smooth start
+ - spline-based pitch balance algorithm
+---
+ Data/config.ini                                |   50 +++---
+ Framework/include/MotionState.h                |   19 +++
+ Framework/include/QuadraticStateTransform.h    |   27 +++
+ Framework/include/Walking.h                    |   21 +++
+ Framework/src/math/MotionState.cpp             |   25 +++
+ Framework/src/math/QuadraticStateTransform.cpp |   97 +++++++++++
+ Framework/src/motion/modules/Walking.cpp       |  213 ++++++++++++++++++++----
+ Linux/build/Makefile                           |    2 +
+ Linux/project/walk_tuner/cmd_process.cpp       |  152 ++++++++++++++++-
+ Linux/project/walk_tuner/cmd_process.h         |    7 +
+ 10 files changed, 550 insertions(+), 63 deletions(-)
+ create mode 100644 Framework/include/MotionState.h
+ create mode 100644 Framework/include/QuadraticStateTransform.h
+ create mode 100644 Framework/src/math/MotionState.cpp
+ create mode 100644 Framework/src/math/QuadraticStateTransform.cpp
+
+diff --git a/Data/config.ini b/Data/config.ini
+index 9b3b6a8..619cfac 100644
+--- a/Data/config.ini
++++ b/Data/config.ini
+@@ -5,12 +5,12 @@ ID_03=2
+ ID_04=-2
+ ID_05=0
+ ID_06=0
+-ID_07=0
+-ID_08=0
++ID_07=-4
++ID_08=15
+ ID_09=256
+ ID_10=-256
+-ID_11=-21
+-ID_12=0
++ID_11=-20
++ID_12=10
+ ID_13=853
+ ID_14=-853
+ ID_15=0
+@@ -43,28 +43,34 @@ ID_19=0
+ ID_20=0
+ 
+ [Walking Config]
+-x_offset=-10.000000
+-y_offset=33.000000
+-z_offset=5.000000
+-roll_offset=5.900000
+-pitch_offset=0.000000
++x_offset=-8.000000
++y_offset=55.000000
++z_offset=10.000000
++roll_offset=10.000000
++pitch_offset=-1.700000
+ yaw_offset=0.000000
+-hip_pitch_offset=13.000000
+-period_time=846.000000
++hip_pitch_offset=2.500000
++period_time=900.000000
+ dsp_ratio=0.100000
+ step_forward_back_ratio=0.260000
+-foot_height=40.000000
+-swing_right_left=20.000000
+-swing_top_down=5.000000
+-pelvis_offset=3.000000
++foot_height=12.000000
++swing_right_left=1.400000
++swing_top_down=0.000000
++pelvis_offset=0.000000
+ arm_swing_gain=1.500000
+-balance_knee_gain=0.300000
+-balance_ankle_pitch_gain=0.900000
+-balance_hip_roll_gain=0.500000
+-balance_ankle_roll_gain=1.000000
+-p_gain=30
++balance_knee_gain=-0.000000
++balance_ankle_pitch_gain=0.000000
++balance_hip_roll_gain=0.000000
++balance_ankle_roll_gain=0.000000
++lean_fb_gain=5.000000
++lean_fb_accel_gain=0.000000
++lean_turn_gain=2.000000
++p_gain=50
+ i_gain=0
+ d_gain=0
++start_step_factor=1.000000
++balance_angle_smooth_gain=0.910000
++balance_angle_gain=0.100000
+ 
+ [Camera]
+ Brightness=128
+@@ -80,3 +86,7 @@ min_saturation=72
+ min_value=10
+ min_percent=0.030000
+ max_percent=30.000000
++
++[Offset_angle]
++acc_smooth_decay=0.010000
++acc_gain=0.010000
+diff --git a/Framework/include/MotionState.h b/Framework/include/MotionState.h
+new file mode 100644
+index 0000000..2586617
+--- /dev/null
++++ b/Framework/include/MotionState.h
+@@ -0,0 +1,19 @@
++#ifndef MOTIONSTATE_H_
++#define MOTIONSTATE_H_
++
++class MotionState
++{
++public:
++	MotionState();
++	MotionState(double t, double x, double v);
++	~MotionState(){};
++
++	void set(double x, double v);
++
++	double t;
++	double x;
++	double v;
++	double a;
++};
++
++#endif /* MOTIONSTATE_H_ */
+diff --git a/Framework/include/QuadraticStateTransform.h b/Framework/include/QuadraticStateTransform.h
+new file mode 100644
+index 0000000..57da9d8
+--- /dev/null
++++ b/Framework/include/QuadraticStateTransform.h
+@@ -0,0 +1,27 @@
++#ifndef QUADRATICSTATETRANSFORM_H_
++#define QUADRATICSTATETRANSFORM_H_
++#include "MotionState.h"
++
++class QuadraticStateTransform
++{
++public:
++
++	QuadraticStateTransform();
++	~QuadraticStateTransform(){};
++
++	void setA(double A);
++	void setStartState(double x, double v);
++	void setTargetState(double x, double v);
++
++	MotionState evaluateAt(double t);
++	double totalTime();
++
++	double A;
++	MotionState startState;
++	MotionState targetState;
++
++private:
++	void transformState(double a, double t, MotionState& st);
++};
++
++#endif // QUADRATICSTATETRANSFORM_H_
+diff --git a/Framework/include/Walking.h b/Framework/include/Walking.h
+index 1c6ef34..bd7760a 100644
+--- a/Framework/include/Walking.h
++++ b/Framework/include/Walking.h
+@@ -75,6 +75,7 @@ namespace Robot
+ 		double m_Z_Swap_Amplitude_Shift;
+ 		double m_Z_Move_Phase_Shift;
+ 		double m_Z_Move_Amplitude;
++		double m_Z_Move_Amplitude_Goal;
+ 		double m_Z_Move_Amplitude_Shift;
+ 		double m_A_Move_Phase_Shift;
+ 		double m_A_Move_Amplitude;
+@@ -93,6 +94,14 @@ namespace Robot
+ 		double m_Body_Swing_Y;
+ 		double m_Body_Swing_Z;
+ 
++		bool m_firstStep;
++		double m_P_Lean;
++		unsigned int m_holdCycles;
++
++        double m_balance_fb_angle;
++
++        FILE* m_balanceLog;
++
+         Walking();
+ 
+ 		double wsin(double time, double period, double period_shift, double mag, double mag_shift);
+@@ -100,6 +109,7 @@ namespace Robot
+ 		void update_param_time();
+ 		void update_param_move();
+ 		void update_param_balance();
++        double splineBalance(double angle, double vel, double gain);
+ 
+ 	public:
+ 		// Walking initial pose
+@@ -110,6 +120,8 @@ namespace Robot
+ 		double P_OFFSET;
+ 		double R_OFFSET;
+ 
++		double X_AMPLITUDE_OFFSET;
++
+ 		// Walking control
+ 		double PERIOD_TIME;
+ 		double DSP_RATIO;
+@@ -126,12 +138,21 @@ namespace Robot
+ 		double BALANCE_ANKLE_PITCH_GAIN;
+ 		double BALANCE_HIP_ROLL_GAIN;
+ 		double BALANCE_ANKLE_ROLL_GAIN;
++
++        double BALANCE_ANGLE_SMOOTH_GAIN;
++        double BALANCE_ANGLE_GAIN;
+ 		double Y_SWAP_AMPLITUDE;
+ 		double Z_SWAP_AMPLITUDE;
+ 		double ARM_SWING_GAIN;
+ 		double PELVIS_OFFSET;
+ 		double HIP_PITCH_OFFSET;
+ 
++		double LEAN_FB;
++        double LEAN_FB_ACCEL;
++		double LEAN_TURN;
++
++        double START_STEP_FACTOR;
++
+ 		int    P_GAIN;
+ 		int    I_GAIN;
+ 		int    D_GAIN;
+diff --git a/Framework/src/math/MotionState.cpp b/Framework/src/math/MotionState.cpp
+new file mode 100644
+index 0000000..4bae7cc
+--- /dev/null
++++ b/Framework/src/math/MotionState.cpp
+@@ -0,0 +1,25 @@
++#include "MotionState.h"
++
++MotionState::MotionState()
++{
++	t = 0;
++	x = 0;
++	v = 0;
++	a = 0;
++}
++
++MotionState::MotionState(double t, double x, double v)
++{
++	this->t = t;
++	this->x = x;
++	this->v = v;
++	a = 0;
++}
++
++void MotionState::set(double x, double v)
++{
++	this->x = x;
++	this->v = v;
++	a = 0;
++}
++
+diff --git a/Framework/src/math/QuadraticStateTransform.cpp b/Framework/src/math/QuadraticStateTransform.cpp
+new file mode 100644
+index 0000000..00ef967
+--- /dev/null
++++ b/Framework/src/math/QuadraticStateTransform.cpp
+@@ -0,0 +1,97 @@
++#include "QuadraticStateTransform.h"
++#include <math.h>
++
++inline double sgn(double a)
++{
++    if(a < 0)
++        return -1.0;
++    else
++        return 1.0;
++}
++
++// Instantiates a keyframe player with A=1.
++QuadraticStateTransform::QuadraticStateTransform()
++{
++	A = 1;
++}
++
++// Sets the acceleration limit to A.
++void QuadraticStateTransform::setA(double A)
++{
++	this->A = A;
++}
++
++// Sets the start state to position x and velocity v.
++void QuadraticStateTransform::setStartState(double x, double v)
++{
++	startState.x = x;
++	startState.v = v;
++}
++
++// Sets the target state to position x and velocity v.
++void QuadraticStateTransform::setTargetState(double x, double v)
++{
++	targetState.x = x;
++	targetState.v = v;
++}
++
++// Returns time needed for the state transform from startState to targetState.
++double QuadraticStateTransform::totalTime()
++{
++	double x0 = startState.x;
++	double v0 = startState.v;
++	double x1 = targetState.x;
++	double v1 = targetState.v;
++	double dx = fabs(x1-x0);
++	v0 = sgn(x1-x0)*v0;
++	v1 = sgn(x1-x0)*v1;
++
++	int sign = (sqrt(v0*v0 + 2.0*A*dx) < v1 or sqrt(v1*v1 + 2.0*A*dx) < v0) ? -1 : 1;
++	double tt = (sqrt(2.0*(v0*v0 + v1*v1) + sign*4.0*A*dx) - sign*(v0+v1)) / A;
++
++//	qDebug() << A << sign << tt << tt1 << tt2;
++
++	return tt;
++}
++
++// Evaluates the state transform at a given time t and returns the calculated motion state.
++MotionState QuadraticStateTransform::evaluateAt(double t)
++{
++	MotionState state;
++	state = startState;
++
++	double x0 = startState.x;
++	double v0 = startState.v;
++	double x1 = targetState.x;
++	double v1 = targetState.v;
++	double dx = fabs(x1-x0);
++	int dxsign = sgn(x1-x0);
++	v0 = dxsign*v0;
++	v1 = dxsign*v1;
++
++	int sign = (sqrt(v0*v0 + 2.0*A*dx) < v1 or sqrt(v1*v1 + 2.0*A*dx) < v0) ? -1 : 1;
++	double tt = (sqrt(2.0*(v0*v0 + v1*v1) + sign*4.0*A*dx) - sign*(v0+v1)) / A;
++	double tstar = (v1-v0+sign*A*tt)/(2*sign*A);
++
++	if (t < tstar)
++	{
++		transformState(dxsign*sign*A, t, state);
++	}
++	else
++	{
++		transformState(dxsign*sign*A, tstar, state);
++		transformState(dxsign*-sign*A, t-tstar, state);
++	}
++
++	state.t = tt;
++
++	return state;
++}
++
++void QuadraticStateTransform::transformState(double a, double t, MotionState& st)
++{
++	st.a = a;
++	st.t += t;
++	st.x += 0.5*st.a*t*t + st.v*t;
++	st.v += st.a*t;
++}
+diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
+index 6431b55..ea2c93e 100644
+--- a/Framework/src/motion/modules/Walking.cpp
++++ b/Framework/src/motion/modules/Walking.cpp
+@@ -6,15 +6,18 @@
+  */
+ #include <stdio.h>
+ #include <math.h>
++#include <assert.h>
+ #include "Vector.h"
+ #include "Matrix.h"
+ #include "MX28.h"
+ #include "MotionStatus.h"
+ #include "Kinematics.h"
+ #include "Walking.h"
++#include "QuadraticStateTransform.h"
+ 
+ using namespace Robot;
+ 
++#define LOG_BALANCE 0
+ 
+ #define PI (3.14159265)
+ 
+@@ -37,27 +40,37 @@ Walking::Walking()
+     Z_SWAP_AMPLITUDE = 5;
+     PELVIS_OFFSET = 3.0;
+     ARM_SWING_GAIN = 1.5;
+-	BALANCE_KNEE_GAIN = 0.3;
+-	BALANCE_ANKLE_PITCH_GAIN = 0.9;
+-	BALANCE_HIP_ROLL_GAIN = 0.5;
+-	BALANCE_ANKLE_ROLL_GAIN = 1.0;
++    BALANCE_KNEE_GAIN = 0.3;
++    BALANCE_ANKLE_PITCH_GAIN = 0.9;
++    BALANCE_HIP_ROLL_GAIN = 0.5;
++    BALANCE_ANKLE_ROLL_GAIN = 1.0;
++    X_AMPLITUDE_OFFSET = 0;
+ 
+ 	P_GAIN = JointData::P_GAIN_DEFAULT;
+     I_GAIN = JointData::I_GAIN_DEFAULT;
+     D_GAIN = JointData::D_GAIN_DEFAULT;
+ 
+-	X_MOVE_AMPLITUDE = 0;
+-	Y_MOVE_AMPLITUDE = 0;
+-	A_MOVE_AMPLITUDE = 0;	
+-	A_MOVE_AIM_ON = false;
+-	BALANCE_ENABLE = true;
++    X_MOVE_AMPLITUDE = 0;
++    Y_MOVE_AMPLITUDE = 0;
++    A_MOVE_AMPLITUDE = 0;
++    A_MOVE_AIM_ON = false;
++    BALANCE_ENABLE = true;
+ 
+-	m_Joint.SetAngle(JointData::ID_R_SHOULDER_PITCH, -48.345);
+-	m_Joint.SetAngle(JointData::ID_L_SHOULDER_PITCH, 41.313);
+-	m_Joint.SetAngle(JointData::ID_R_SHOULDER_ROLL, -17.873);
+-    m_Joint.SetAngle(JointData::ID_L_SHOULDER_ROLL, 17.580);
+-	m_Joint.SetAngle(JointData::ID_R_ELBOW, 29.300);
+-	m_Joint.SetAngle(JointData::ID_L_ELBOW, -29.593);
++    BALANCE_ANGLE_GAIN = 0;
++    BALANCE_ANGLE_SMOOTH_GAIN = 0.01;
++
++    LEAN_FB = 2.0;
++    LEAN_FB_ACCEL = 3.0;
++    LEAN_TURN = 2.0;
++
++    START_STEP_FACTOR = 0.5;
++
++    m_Joint.SetAngle(JointData::ID_R_SHOULDER_PITCH, -48.345);
++    m_Joint.SetAngle(JointData::ID_L_SHOULDER_PITCH, 41.313);
++    m_Joint.SetAngle(JointData::ID_R_SHOULDER_ROLL, -25.873);
++    m_Joint.SetAngle(JointData::ID_L_SHOULDER_ROLL, 25.580);
++    m_Joint.SetAngle(JointData::ID_R_ELBOW, 29.300);
++    m_Joint.SetAngle(JointData::ID_L_ELBOW, -29.593);
+ 
+ 	m_Joint.SetAngle(JointData::ID_HEAD_TILT, Kinematics::EYE_TILT_OFFSET_ANGLE);
+ 
+@@ -68,6 +81,11 @@ Walking::Walking()
+     m_Joint.SetSlope(JointData::ID_R_ELBOW, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
+     m_Joint.SetSlope(JointData::ID_L_ELBOW, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
+     m_Joint.SetSlope(JointData::ID_HEAD_PAN, JointData::SLOPE_EXTRASOFT, JointData::SLOPE_EXTRASOFT);
++
++#if LOG_BALANCE
++    m_balanceLog = fopen("balance.log", "w");
++    assert(m_balanceLog);
++#endif
+ }
+ 
+ Walking::~Walking()
+@@ -101,7 +119,12 @@ void Walking::LoadINISettings(minIni* ini, const std::string &section)
+     if((value = ini->getd(section, "balance_ankle_pitch_gain", INVALID_VALUE)) != INVALID_VALUE)BALANCE_ANKLE_PITCH_GAIN = value;
+     if((value = ini->getd(section, "balance_hip_roll_gain", INVALID_VALUE)) != INVALID_VALUE)   BALANCE_HIP_ROLL_GAIN = value;
+     if((value = ini->getd(section, "balance_ankle_roll_gain", INVALID_VALUE)) != INVALID_VALUE) BALANCE_ANKLE_ROLL_GAIN = value;
+-
++    if((value = ini->getd(section, "balance_angle_smooth_gain", INVALID_VALUE)) != INVALID_VALUE) BALANCE_ANGLE_SMOOTH_GAIN = value;
++    if((value = ini->getd(section, "balance_angle_gain", INVALID_VALUE)) != INVALID_VALUE)      BALANCE_ANGLE_GAIN = value;
++    if((value = ini->getd(section, "lean_fb_gain", INVALID_VALUE)) != INVALID_VALUE) LEAN_FB = value;
++    if((value = ini->getd(section, "lean_fb_accel_gain", INVALID_VALUE)) != INVALID_VALUE) LEAN_FB_ACCEL = value;
++    if((value = ini->getd(section, "lean_turn_gain", INVALID_VALUE)) != INVALID_VALUE) LEAN_TURN = value;
++    if((value = ini->getd(section, "start_step_factor", INVALID_VALUE)) != INVALID_VALUE) START_STEP_FACTOR = value;
+     int ivalue = INVALID_VALUE;
+ 
+     if((ivalue = ini->geti(section, "p_gain", INVALID_VALUE)) != INVALID_VALUE)                 P_GAIN = ivalue;
+@@ -134,6 +157,14 @@ void Walking::SaveINISettings(minIni* ini, const std::string &section)
+     ini->put(section,   "balance_hip_roll_gain",    BALANCE_HIP_ROLL_GAIN);
+     ini->put(section,   "balance_ankle_roll_gain",  BALANCE_ANKLE_ROLL_GAIN);
+ 
++    ini->put(section,   "balance_angle_smooth_gain", BALANCE_ANGLE_SMOOTH_GAIN);
++    ini->put(section,   "balance_angle_gain",       BALANCE_ANGLE_GAIN);
++
++    ini->put(section,   "lean_fb_gain",             LEAN_FB);
++    ini->put(section,   "lean_fb_accel_gain",       LEAN_FB_ACCEL);
++    ini->put(section,   "lean_turn_gain",           LEAN_TURN);
++    ini->put(section,   "start_step_factor",        START_STEP_FACTOR);
++
+     ini->put(section,   "p_gain",                   P_GAIN);
+     ini->put(section,   "i_gain",                   I_GAIN);
+     ini->put(section,   "d_gain",                   D_GAIN);
+@@ -254,9 +285,73 @@ void Walking::update_param_time()
+ 
+ void Walking::update_param_move()
+ {
+-	// Forward/Back
+-    m_X_Move_Amplitude = X_MOVE_AMPLITUDE;
+-    m_X_Swap_Amplitude = X_MOVE_AMPLITUDE * STEP_FB_RATIO;
++    // Smooth out velocity commands
++    const double FB_ACC_ALPHA = 0.1;
++    const double FB_DEC_ALPHA = 0.5;
++    const double TURN_UNIT = (20.0/35.0) * 6.0 * PI / 180.0 / 2;
++
++    double x_input = X_MOVE_AMPLITUDE + X_AMPLITUDE_OFFSET;
++    double a_input = (20.0 / 35.0 ) * A_MOVE_AMPLITUDE * PI / 180.0 / 2;
++
++    // Low pass filtering for X velocity
++    if(x_input > m_X_Move_Amplitude)
++        m_X_Move_Amplitude = (1.0-FB_ACC_ALPHA) * m_X_Move_Amplitude + FB_ACC_ALPHA * x_input;
++    else if(x_input < m_X_Move_Amplitude)
++        m_X_Move_Amplitude = (1.0-FB_DEC_ALPHA) * m_X_Move_Amplitude + FB_DEC_ALPHA * x_input;
++
++    // Linear solution for rotation
++    if(a_input > m_A_Move_Amplitude)
++        m_A_Move_Amplitude += TURN_UNIT;
++    else if(a_input < m_A_Move_Amplitude)
++        m_A_Move_Amplitude -= TURN_UNIT;
++
++    // If we are still starting up, ignore input commands while the walk cycle
++    // evens out
++    if(m_holdCycles != 0)
++    {
++        m_X_Move_Amplitude = X_AMPLITUDE_OFFSET;
++        m_A_Move_Amplitude = 0;
++    }
++
++    // First step gets a special handling
++    if(m_firstStep)
++        m_Z_Move_Amplitude = START_STEP_FACTOR * Z_MOVE_AMPLITUDE / 2;
++    else
++        m_Z_Move_Amplitude = Z_MOVE_AMPLITUDE / 2;
++
++#if CMD_DEBUG
++    printf("X: (% 5.1f / % 5.1f) Y: (% 5.1f / % 5.1f) Z: (% 5.1f / % 5.1f) A: (% 5.1f / % 5.1f)\n",
++        m_X_Move_Amplitude, X_MOVE_AMPLITUDE+X_AMPLITUDE_OFFSET,
++        m_Y_Move_Amplitude, Y_MOVE_AMPLITUDE,
++        m_Z_Move_Amplitude, Z_MOVE_AMPLITUDE,
++        m_A_Move_Amplitude, A_MOVE_AMPLITUDE
++    );
++#endif
++
++    if(m_firstStep)
++        m_P_Lean = -1.3;
++    else if(m_X_Move_Amplitude - X_AMPLITUDE_OFFSET > 0)
++    {
++        // Lean forward if walking forward
++        double fb_offset = P_OFFSET;
++
++        // Use different offset if accelerating
++        if(m_X_Move_Amplitude < X_MOVE_AMPLITUDE+X_AMPLITUDE_OFFSET - 0.1)
++            fb_offset -= LEAN_FB_ACCEL;
++
++        double p_offset_forward = fb_offset - LEAN_FB * (m_X_Move_Amplitude - X_AMPLITUDE_OFFSET) / 20;
++        double p_offset_turn = P_OFFSET - LEAN_TURN * fabs(m_A_Move_Amplitude) / 20;
++
++        if(p_offset_forward < p_offset_turn)
++            m_P_Lean = p_offset_forward;
++        else
++            m_P_Lean = p_offset_turn;
++    }
++    else
++        m_P_Lean = P_OFFSET;
++
++    // Forward/Back
++    m_X_Swap_Amplitude = m_X_Move_Amplitude * STEP_FB_RATIO;
+ 
+     // Right/Left
+     m_Y_Move_Amplitude = Y_MOVE_AMPLITUDE / 2;
+@@ -266,7 +361,6 @@ void Walking::update_param_move()
+         m_Y_Move_Amplitude_Shift = -m_Y_Move_Amplitude;
+     m_Y_Swap_Amplitude = Y_SWAP_AMPLITUDE + m_Y_Move_Amplitude_Shift * 0.04;
+ 
+-    m_Z_Move_Amplitude = Z_MOVE_AMPLITUDE / 2;
+     m_Z_Move_Amplitude_Shift = m_Z_Move_Amplitude / 2;
+     m_Z_Swap_Amplitude = Z_SWAP_AMPLITUDE;
+     m_Z_Swap_Amplitude_Shift = m_Z_Swap_Amplitude;
+@@ -274,7 +368,6 @@ void Walking::update_param_move()
+     // Direction
+     if(A_MOVE_AIM_ON == false)
+     {
+-        m_A_Move_Amplitude = A_MOVE_AMPLITUDE * PI / 180.0 / 2;
+         if(m_A_Move_Amplitude > 0)
+             m_A_Move_Amplitude_Shift = m_A_Move_Amplitude;
+         else
+@@ -282,12 +375,14 @@ void Walking::update_param_move()
+     }
+     else
+     {
+-        m_A_Move_Amplitude = -A_MOVE_AMPLITUDE * PI / 180.0 / 2;
+         if(m_A_Move_Amplitude > 0)
+             m_A_Move_Amplitude_Shift = -m_A_Move_Amplitude;
+         else
+             m_A_Move_Amplitude_Shift = m_A_Move_Amplitude;
+     }
++
++    if(m_firstStep)
++        m_firstStep = false;
+ }
+ 
+ void Walking::update_param_balance()
+@@ -296,7 +391,7 @@ void Walking::update_param_balance()
+     m_Y_Offset = Y_OFFSET;
+     m_Z_Offset = Z_OFFSET;
+     m_R_Offset = R_OFFSET * PI / 180.0;
+-    m_P_Offset = P_OFFSET * PI / 180.0;
++    m_P_Offset = m_P_Lean * PI / 180.0;
+     m_A_Offset = A_OFFSET * PI / 180.0;
+     m_Hip_Pitch_Offset = HIP_PITCH_OFFSET*MX28::RATIO_ANGLE2VALUE;
+ }
+@@ -357,7 +452,7 @@ void Walking::Process()
+ 	double TIME_UNIT = MotionModule::TIME_UNIT;
+ 	//                     R_HIP_YAW, R_HIP_ROLL, R_HIP_PITCH, R_KNEE, R_ANKLE_PITCH, R_ANKLE_ROLL, L_HIP_YAW, L_HIP_ROLL, L_HIP_PITCH, L_KNEE, L_ANKLE_PITCH, L_ANKLE_ROLL, R_ARM_SWING, L_ARM_SWING
+ 	int dir[14]          = {   -1,        -1,          1,         1,         -1,            1,          -1,        -1,         -1,         -1,         1,            1,           1,           -1      };
+-    double initAngle[14] = {   0.0,       0.0,        0.0,       0.0,        0.0,          0.0,         0.0,       0.0,        0.0,        0.0,       0.0,          0.0,       -48.345,       41.313    };
++	double initAngle[14] = {   0.0,       0.0,        0.0,       0.0,        0.0,          0.0,         0.0,       0.0,        0.0,        0.0,       0.0,          0.0,       -25.0,       25.0};
+ 	int outValue[14];
+ 
+     // Update walk parameters
+@@ -367,7 +462,9 @@ void Walking::Process()
+         m_Phase = PHASE0;
+         if(m_Ctrl_Running == false)
+         {
+-            if(m_X_Move_Amplitude == 0 && m_Y_Move_Amplitude == 0 && m_A_Move_Amplitude == 0)
++            if(  fabs(m_X_Move_Amplitude - X_AMPLITUDE_OFFSET) < 0.2
++               && fabs(m_Y_Move_Amplitude) < 0.2
++               && fabs(m_A_Move_Amplitude) < 0.2)
+             {
+                 m_Real_Running = false;
+             }
+@@ -391,7 +488,9 @@ void Walking::Process()
+         m_Phase = PHASE2;
+         if(m_Ctrl_Running == false)
+         {
+-            if(m_X_Move_Amplitude == 0 && m_Y_Move_Amplitude == 0 && m_A_Move_Amplitude == 0)
++            if(  fabs(m_X_Move_Amplitude - X_AMPLITUDE_OFFSET) < 0.2
++               && fabs(m_Y_Move_Amplitude) < 0.2
++               && fabs(m_A_Move_Amplitude) < 0.2)
+             {
+                 m_Real_Running = false;
+             }
+@@ -502,6 +601,17 @@ void Walking::Process()
+     ep[10] = b_swap + b_move_l + m_P_Offset;
+     ep[11] = c_swap + c_move_l + m_A_Offset / 2;
+ 
++    if(BALANCE_ENABLE)
++    {
++        m_balance_fb_angle = (1.0-BALANCE_ANGLE_SMOOTH_GAIN) * m_balance_fb_angle + BALANCE_ANGLE_SMOOTH_GAIN * MotionStatus::ANGLE_PITCH;
++
++        double angleVel = -(250.0 / 512.0) * (M_PI / 180.0) * MotionStatus::FB_GYRO;
++        double splineOffset = splineBalance(MotionStatus::ANGLE_PITCH, angleVel, BALANCE_ANGLE_GAIN);
++
++        ep[0] += splineOffset;
++        ep[6] += splineOffset;
++    }
++
+     // Compute body swing
+     if(m_Time <= m_SSP_Time_End_L)
+     {
+@@ -531,7 +641,17 @@ void Walking::Process()
+     {
+         m_Time += TIME_UNIT;
+         if(m_Time >= m_PeriodTime)
++        {
+             m_Time = 0;
++            if(m_holdCycles != 0)
++                m_holdCycles--;
++        }
++    }
++    else
++    {
++        m_firstStep = true;
++        m_holdCycles = 10;
++        m_Time = 0;
+     }
+ 
+     // Compute angles
+@@ -563,8 +683,9 @@ void Walking::Process()
+     // adjust balance offset
+     if(BALANCE_ENABLE == true)
+     {
+-		double rlGyroErr = MotionStatus::RL_GYRO;
+-		double fbGyroErr = MotionStatus::FB_GYRO;
++        double rlGyroErr = MotionStatus::RL_GYRO;
++        double fbGyroErr = MotionStatus::FB_GYRO;
++
+ #ifdef MX28_1024
+         outValue[1] += (int)(dir[1] * rlGyroErr * BALANCE_HIP_ROLL_GAIN); // R_HIP_ROLL
+         outValue[7] += (int)(dir[7] * rlGyroErr * BALANCE_HIP_ROLL_GAIN); // L_HIP_ROLL
+@@ -578,17 +699,17 @@ void Walking::Process()
+         outValue[5] -= (int)(dir[5] * rlGyroErr * BALANCE_ANKLE_ROLL_GAIN); // R_ANKLE_ROLL
+         outValue[11] -= (int)(dir[11] * rlGyroErr * BALANCE_ANKLE_ROLL_GAIN); // L_ANKLE_ROLL
+ #else
+-		outValue[1] += (int)(dir[1] * rlGyroErr * BALANCE_HIP_ROLL_GAIN*4); // R_HIP_ROLL
+-        outValue[7] += (int)(dir[7] * rlGyroErr * BALANCE_HIP_ROLL_GAIN*4); // L_HIP_ROLL
++        outValue[1] += dir[1] * rlGyroErr * BALANCE_HIP_ROLL_GAIN*4; // R_HIP_ROLL
++        outValue[7] += dir[7] * rlGyroErr * BALANCE_HIP_ROLL_GAIN*4; // L_HIP_ROLL
+ 
+-        outValue[3] -= (int)(dir[3] * fbGyroErr * BALANCE_KNEE_GAIN*4); // R_KNEE
+-        outValue[9] -= (int)(dir[9] * fbGyroErr * BALANCE_KNEE_GAIN*4); // L_KNEE
++        outValue[3] -= dir[3] * fbGyroErr * BALANCE_KNEE_GAIN*4; // R_KNEE
++        outValue[9] -= dir[9] * fbGyroErr * BALANCE_KNEE_GAIN*4; // L_KNEE
+ 
+-		outValue[4] -= (int)(dir[4] * fbGyroErr * BALANCE_ANKLE_PITCH_GAIN*4); // R_ANKLE_PITCH
+-        outValue[10] -= (int)(dir[10] * fbGyroErr * BALANCE_ANKLE_PITCH_GAIN*4); // L_ANKLE_PITCH
++        outValue[4]  -= dir[4]  * fbGyroErr * BALANCE_ANKLE_PITCH_GAIN*4; // R_ANKLE_PITCH
++        outValue[10] -= dir[10] * fbGyroErr * BALANCE_ANKLE_PITCH_GAIN*4; // L_ANKLE_PITCH
+ 
+-		outValue[5] -= (int)(dir[5] * rlGyroErr * BALANCE_ANKLE_ROLL_GAIN*4); // R_ANKLE_ROLL
+-        outValue[11] -= (int)(dir[11] * rlGyroErr * BALANCE_ANKLE_ROLL_GAIN*4); // L_ANKLE_ROLL
++        outValue[5] -= dir[5] * rlGyroErr * BALANCE_ANKLE_ROLL_GAIN*4; // R_ANKLE_ROLL
++        outValue[11] -= dir[11] * rlGyroErr * BALANCE_ANKLE_ROLL_GAIN*4; // L_ANKLE_ROLL
+ #endif
+     }
+ 
+@@ -607,11 +728,29 @@ void Walking::Process()
+ 	m_Joint.SetValue(JointData::ID_R_SHOULDER_PITCH,    outValue[12]);
+ 	m_Joint.SetValue(JointData::ID_L_SHOULDER_PITCH,    outValue[13]);
+ 	m_Joint.SetAngle(JointData::ID_HEAD_PAN, A_MOVE_AMPLITUDE);
++	m_Joint.SetValue(JointData::ID_HEAD_TILT, 2047);
+ 
+ 	for(int id = JointData::ID_R_HIP_YAW; id <= JointData::ID_L_ANKLE_ROLL; id++)
+ 	{
+ 	    m_Joint.SetPGain(id, P_GAIN);
+         m_Joint.SetIGain(id, I_GAIN);
+         m_Joint.SetDGain(id, D_GAIN);
+-	}
++    }
++}
++
++double Walking::splineBalance(double angle, double vel, double gain)
++{
++    QuadraticStateTransform transform;
++    transform.setA(1.0);
++    transform.setStartState(angle, vel);
++    transform.setTargetState(0.0, 0.0);
++    MotionState cmd = transform.evaluateAt(0.1);
++
++    double offset = 1000.0 * gain * (cmd.x - angle);
++
++#if LOG_BALANCE
++    fprintf(m_balanceLog, "%5.3f %5.3f %5.3f %5.3f\n", angle, vel, offset, cmd.t);
++#endif
++
++    return offset;
+ }
+diff --git a/Linux/build/Makefile b/Linux/build/Makefile
+index a02b1df..c87094b 100644
+--- a/Linux/build/Makefile
++++ b/Linux/build/Makefile
+@@ -24,6 +24,8 @@ OBJS =  ../../Framework/src/CM730.o     	\
+         ../../Framework/src/math/Plane.o    \
+         ../../Framework/src/math/Point.o    \
+         ../../Framework/src/math/Vector.o   \
++        ../../Framework/src/math/QuadraticStateTransform.o   \
++        ../../Framework/src/math/MotionState.o   \
+         ../../Framework/src/motion/JointData.o  	\
+         ../../Framework/src/motion/Kinematics.o 	\
+         ../../Framework/src/motion/MotionManager.o  \
+diff --git a/Linux/project/walk_tuner/cmd_process.cpp b/Linux/project/walk_tuner/cmd_process.cpp
+index f32609b..971378d 100644
+--- a/Linux/project/walk_tuner/cmd_process.cpp
++++ b/Linux/project/walk_tuner/cmd_process.cpp
+@@ -66,7 +66,7 @@ void set_stdin(void)
+ {
+ 	tcgetattr(0,&oldterm);
+ 	new_term = oldterm;
+-	new_term.c_lflag &= ~(ICANON | ECHO | ISIG); // ÀÇ¹Ì´Â struct termios¸¦ Ã£À¸¸é µÊ.
++	new_term.c_lflag &= ~(ICANON | ECHO | ISIG); // Ã€Ç¹Ì´Ã‚ struct termiosÂ¸Â¦ Ã£8Â¸Ã© ÂµÃŠ.
+ 	new_term.c_cc[VMIN] = 1;
+ 	new_term.c_cc[VTIME] = 0;
+ 	tcsetattr(0, TCSANOW, &new_term);
+@@ -223,9 +223,16 @@ void DrawScreen()
+ 	printf("Balance ankle pitch gain  \n"); // 2
+ 	printf("Balance hip roll gain     \n"); // 3
+ 	printf("Balance ankle roll gain   \n"); // 4
++    printf("Balance angle smooth gain \n");
++    printf("Balance angle gain        \n");
+     printf("P gain                    \n"); // 5
+     printf("I gain                    \n"); // 6
+     printf("D gain                    \n"); // 7
++    printf("Lean FB gain              \n");
++    printf("Lean FB accel gain        \n");
++    printf("Lean Turn gain            \n");
++    printf("Start step factor         \n");
++    printf("SSP hold factor           \n");
+     ClearCmd(); // 8
+ 
+ 	GoToCursor(PARAM_COL, WALKING_MODE_ROW);
+@@ -312,6 +319,12 @@ void DrawScreen()
+ 	GoToCursor(PARAM_COL, BAL_ANKLE_ROLL_GAIN_ROW);
+ 	printf("%.2f    ", Walking::GetInstance()->BALANCE_ANKLE_ROLL_GAIN);
+ 
++    GoToCursor(PARAM_COL, BAL_ANGLE_SMOOTH_GAIN_ROW);
++    printf("%.2f    ", Walking::GetInstance()->BALANCE_ANGLE_SMOOTH_GAIN);
++
++    GoToCursor(PARAM_COL, BAL_ANGLE_GAIN_ROW);
++    printf("%.2f    ", Walking::GetInstance()->BALANCE_ANGLE_GAIN);
++
+     GoToCursor(PARAM_COL, P_GAIN_ROW);
+     printf("%d    ", Walking::GetInstance()->P_GAIN);
+ 
+@@ -321,6 +334,21 @@ void DrawScreen()
+     GoToCursor(PARAM_COL, D_GAIN_ROW);
+     printf("%d    ", Walking::GetInstance()->D_GAIN);
+ 
++    GoToCursor(PARAM_COL, LEAN_FB_ROW);
++    printf("%.1f    ", Walking::GetInstance()->LEAN_FB);
++
++    GoToCursor(PARAM_COL, LEAN_FB_ACCEL_ROW);
++    printf("%.1f    ", Walking::GetInstance()->LEAN_FB_ACCEL);
++
++    GoToCursor(PARAM_COL, LEAN_TURN_ROW);
++    printf("%.1f    ", Walking::GetInstance()->LEAN_TURN);
++
++    GoToCursor(PARAM_COL, START_STEP_FACTOR_ROW);
++    printf("%.2f    ", Walking::GetInstance()->START_STEP_FACTOR);
++
++    GoToCursor(PARAM_COL, SSP_HOLD_FACTOR_ROW);
++    printf("%.2f    ", Walking::GetInstance()->SSP_HOLD_FACTOR);
++
+ 	GoToCursor(old_col, old_row);
+ }
+ 
+@@ -555,6 +583,22 @@ void IncreaseValue(bool large)
+ 		printf("%.2f    ", Walking::GetInstance()->BALANCE_ANKLE_ROLL_GAIN);
+ 		break;
+ 
++    case BAL_ANGLE_SMOOTH_GAIN_ROW:
++        if(large == true)
++            Walking::GetInstance()->BALANCE_ANGLE_SMOOTH_GAIN += 0.1;
++        else
++            Walking::GetInstance()->BALANCE_ANGLE_SMOOTH_GAIN += 0.01;
++        printf("%.2f    ", Walking::GetInstance()->BALANCE_ANGLE_SMOOTH_GAIN);
++        break;
++
++    case BAL_ANGLE_GAIN_ROW:
++        if(large == true)
++            Walking::GetInstance()->BALANCE_ANGLE_GAIN += 0.1;
++        else
++            Walking::GetInstance()->BALANCE_ANGLE_GAIN += 0.01;
++        printf("%.2f    ", Walking::GetInstance()->BALANCE_ANGLE_GAIN);
++        break;
++
+     case P_GAIN_ROW:
+         if(large == true)
+             Walking::GetInstance()->P_GAIN += 10;
+@@ -578,9 +622,49 @@ void IncreaseValue(bool large)
+             Walking::GetInstance()->D_GAIN += 1;
+         printf("%d    ", Walking::GetInstance()->D_GAIN);
+         break;
+-	}
+ 
+-	GoToCursor(col, row);
++    case LEAN_FB_ROW:
++        if(large)
++            Walking::GetInstance()->LEAN_FB += 1.0;
++        else
++            Walking::GetInstance()->LEAN_FB += 0.1;
++        printf("%.1f  ", Walking::GetInstance()->LEAN_FB);
++        break;
++
++    case LEAN_FB_ACCEL_ROW:
++        if(large)
++            Walking::GetInstance()->LEAN_FB_ACCEL += 1.0;
++        else
++            Walking::GetInstance()->LEAN_FB_ACCEL += 0.1;
++        printf("%.1f  ", Walking::GetInstance()->LEAN_FB_ACCEL);
++        break;
++
++    case LEAN_TURN_ROW:
++        if(large)
++            Walking::GetInstance()->LEAN_TURN += 1.0;
++        else
++            Walking::GetInstance()->LEAN_TURN += 0.1;
++        printf("%.1f  ", Walking::GetInstance()->LEAN_TURN);
++        break;
++
++    case START_STEP_FACTOR_ROW:
++        if(large)
++            Walking::GetInstance()->START_STEP_FACTOR += 0.1;
++        else
++            Walking::GetInstance()->START_STEP_FACTOR += 0.01;
++        printf("%.2f  ", Walking::GetInstance()->START_STEP_FACTOR);
++        break;
++
++    case SSP_HOLD_FACTOR_ROW:
++        if(large)
++            Walking::GetInstance()->SSP_HOLD_FACTOR += 0.1;
++        else
++            Walking::GetInstance()->SSP_HOLD_FACTOR += 0.01;
++        printf("%.2f  ", Walking::GetInstance()->SSP_HOLD_FACTOR);
++        break;
++    }
++
++    GoToCursor(col, row);
+ }
+ 
+ void DecreaseValue(bool large)
+@@ -806,6 +890,22 @@ void DecreaseValue(bool large)
+ 		printf("%.2f    ", Walking::GetInstance()->BALANCE_ANKLE_ROLL_GAIN);
+ 		break;
+ 
++    case BAL_ANGLE_SMOOTH_GAIN_ROW:
++        if(large == true)
++            Walking::GetInstance()->BALANCE_ANGLE_SMOOTH_GAIN -= 0.1;
++        else
++            Walking::GetInstance()->BALANCE_ANGLE_SMOOTH_GAIN -= 0.01;
++        printf("%.2f    ", Walking::GetInstance()->BALANCE_ANGLE_SMOOTH_GAIN);
++        break;
++
++    case BAL_ANGLE_GAIN_ROW:
++        if(large == true)
++            Walking::GetInstance()->BALANCE_ANGLE_GAIN -= 0.1;
++        else
++            Walking::GetInstance()->BALANCE_ANGLE_GAIN -= 0.01;
++        printf("%.2f    ", Walking::GetInstance()->BALANCE_ANGLE_GAIN);
++        break;
++
+ 	case P_GAIN_ROW:
+ 	    if(large == true)
+ 	        Walking::GetInstance()->P_GAIN -= 10;
+@@ -829,9 +929,49 @@ void DecreaseValue(bool large)
+             Walking::GetInstance()->D_GAIN -= 1;
+         printf("%d    ", Walking::GetInstance()->D_GAIN);
+         break;
+-	}
+-	
+-	GoToCursor(col, row);
++
++    case LEAN_FB_ROW:
++        if(large)
++            Walking::GetInstance()->LEAN_FB -= 1.0;
++        else
++            Walking::GetInstance()->LEAN_FB -= 0.1;
++        printf("%.1f  ", Walking::GetInstance()->LEAN_FB);
++        break;
++
++    case LEAN_FB_ACCEL_ROW:
++        if(large)
++            Walking::GetInstance()->LEAN_FB_ACCEL -= 1.0;
++        else
++            Walking::GetInstance()->LEAN_FB_ACCEL -= 0.1;
++        printf("%.1f  ", Walking::GetInstance()->LEAN_FB_ACCEL);
++        break;
++
++    case LEAN_TURN_ROW:
++        if(large)
++            Walking::GetInstance()->LEAN_TURN -= 1.0;
++        else
++            Walking::GetInstance()->LEAN_TURN -= 0.1;
++        printf("%.1f  ", Walking::GetInstance()->LEAN_TURN);
++        break;
++
++    case START_STEP_FACTOR_ROW:
++        if(large)
++            Walking::GetInstance()->START_STEP_FACTOR -= 0.1;
++        else
++            Walking::GetInstance()->START_STEP_FACTOR -= 0.01;
++        printf("%.2f  ", Walking::GetInstance()->START_STEP_FACTOR);
++        break;
++
++    case SSP_HOLD_FACTOR_ROW:
++        if(large)
++            Walking::GetInstance()->SSP_HOLD_FACTOR -= 0.1;
++        else
++            Walking::GetInstance()->SSP_HOLD_FACTOR -= 0.01;
++        printf("%.2f  ", Walking::GetInstance()->SSP_HOLD_FACTOR);
++        break;
++    }
++
++    GoToCursor(col, row);
+ }
+ 
+ void BeginCommandMode()
+diff --git a/Linux/project/walk_tuner/cmd_process.h b/Linux/project/walk_tuner/cmd_process.h
+index 7cb540c..2c499a5 100644
+--- a/Linux/project/walk_tuner/cmd_process.h
++++ b/Linux/project/walk_tuner/cmd_process.h
+@@ -39,9 +39,16 @@ enum {
+     BAL_ANKLE_PITCH_GAIN_ROW,
+     BAL_HIP_ROLL_GAIN_ROW,
+     BAL_ANKLE_ROLL_GAIN_ROW,
++    BAL_ANGLE_SMOOTH_GAIN_ROW,
++    BAL_ANGLE_GAIN_ROW,
+     P_GAIN_ROW,
+     I_GAIN_ROW,
+     D_GAIN_ROW,
++    LEAN_FB_ROW,
++    LEAN_FB_ACCEL_ROW,
++    LEAN_TURN_ROW,
++    START_STEP_FACTOR_ROW,
++    SSP_HOLD_FACTOR_ROW,
+     CMD_ROW,
+     SCREEN_ROW
+ };
+-- 
+1.7.9.5
+
