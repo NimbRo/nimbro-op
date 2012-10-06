@@ -1,7 +1,7 @@
-From 1bd936704aace65d02435461e6b7f0c1172117e0 Mon Sep 17 00:00:00 2001
+From 364aeb97c454a6f31f58d8de694e2f161cb9d8e2 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Tue, 24 Jul 2012 13:08:54 +0000
-Subject: [PATCH 05/26] CM730 firmware changes for NimbRo-OP
+Subject: [PATCH 05/25] CM730 firmware changes for NimbRo-OP
 
 Changelist:
  - firmware: changed toolchain prefix

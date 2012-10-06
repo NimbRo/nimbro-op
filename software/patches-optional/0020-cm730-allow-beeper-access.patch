@@ -1,7 +1,7 @@
-From d59af6d89dcc5113507fa9df906769d5ea62087d Mon Sep 17 00:00:00 2001
+From 95a3492169914bbf926a87c4d6707dbaaea22ed6 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 25 Jul 2012 15:27:00 +0000
-Subject: [PATCH 21/26] cm730: allow beeper access
+Subject: [PATCH 20/25] cm730: allow beeper access
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@28 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---

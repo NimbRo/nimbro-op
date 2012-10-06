@@ -1,7 +1,7 @@
-From 9c199061e92ee59ddbecb72fdd71fc291c628a6d Mon Sep 17 00:00:00 2001
+From 052ab9f6aa34d309837563f04bdd0b7862bc48b3 Mon Sep 17 00:00:00 2001
 From: Max Schwarz <Max@x-quadraht.de>
 Date: Fri, 5 Oct 2012 14:14:00 +0200
-Subject: [PATCH 08/26] dxl_monitor: custom settings for NimbRo-OP actuators
+Subject: [PATCH 08/25] dxl_monitor: custom settings for NimbRo-OP actuators
 
 Changes:
  - do not overwrite custom limits

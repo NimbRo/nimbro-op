@@ -1,7 +1,7 @@
-From d2d729ba18646a8456d934a856729f4f9e274614 Mon Sep 17 00:00:00 2001
+From cc6aa2be59564a447e9c489739283ad7d7e1f70a Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Mon, 24 Sep 2012 14:14:56 +0000
-Subject: [PATCH 01/26] CM730: merge uninitialized value fix from robotis SVN
+Subject: [PATCH 01/25] CM730: merge uninitialized value fix from robotis SVN
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@173 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---

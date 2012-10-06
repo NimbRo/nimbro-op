@@ -1,7 +1,7 @@
-From 19c078f4164e6606a155fb70fae2063d79821760 Mon Sep 17 00:00:00 2001
+From 74feae3449f05c8a166b967fc48aa4b5b4399974 Mon Sep 17 00:00:00 2001
 From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Mon, 24 Sep 2012 15:44:57 +0000
-Subject: [PATCH 25/26] ActionEditor: added fuction to apply mirrored pages
+Subject: [PATCH 24/25] ActionEditor: added fuction to apply mirrored pages
 
 Signed-off-by: sebastian <sebastian>
 

@@ -1,7 +1,7 @@
-From 88924f5fcad2c7698fdcef8ad75769a1b0848687 Mon Sep 17 00:00:00 2001
+From 5a0f7b263fa97884dc726df3d9bd89032db11817 Mon Sep 17 00:00:00 2001
 From: Max Schwarz <Max@x-quadraht.de>
 Date: Fri, 5 Oct 2012 15:21:41 +0200
-Subject: [PATCH 10/26] Simple angle estimator
+Subject: [PATCH 10/25] Simple angle estimator
 
 Uses a fused value from accelerometer angle estimation and gyro velocities.
 ---

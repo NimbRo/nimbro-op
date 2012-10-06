@@ -1,7 +1,7 @@
-From a51dfe856528be00328f5b0ff45f2b0cb9309a7b Mon Sep 17 00:00:00 2001
+From e79768d79fdc606bbaf5e22dd9f55ee2ec792974 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Mon, 17 Sep 2012 13:13:22 +0000
-Subject: [PATCH 02/26] added deploy script
+Subject: [PATCH 02/25] added deploy script
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@140 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---

@@ -1,7 +1,7 @@
-From 829ac82c2e5cf2986670aad3725503a32363649c Mon Sep 17 00:00:00 2001
+From 3ca3a15ecb9eeb2a522b665a96648ed3b7a079cc Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 25 Jul 2012 12:26:17 +0000
-Subject: [PATCH 09/26] LinuxMotionTimer: improved performance
+Subject: [PATCH 09/25] LinuxMotionTimer: improved performance
 
 Changes:
  - do not try to catch up on missed cycles

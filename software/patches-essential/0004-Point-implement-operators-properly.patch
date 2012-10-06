@@ -1,7 +1,7 @@
-From b16b2e5eb861012df3d4a2ff09c82be2fda968c9 Mon Sep 17 00:00:00 2001
+From d41dfcd4be39925a4e3c37b3627f3a638760f763 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Thu, 13 Sep 2012 10:54:06 +0000
-Subject: [PATCH 04/26] Point: implement operators properly
+Subject: [PATCH 04/25] Point: implement operators properly
 
 ---
  Framework/include/Point.h    |   18 +++++++++---------

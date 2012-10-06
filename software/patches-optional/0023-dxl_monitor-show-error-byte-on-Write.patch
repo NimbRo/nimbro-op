@@ -1,7 +1,7 @@
-From 90bf544f27cce652e4e16a6b18161e5957df7149 Mon Sep 17 00:00:00 2001
+From b9308c57171927f446b36d1c878a98b43f9431b1 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Mon, 1 Oct 2012 14:50:14 +0000
-Subject: [PATCH 24/26] dxl_monitor: show error byte on Write()
+Subject: [PATCH 23/25] dxl_monitor: show error byte on Write()
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@194 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---

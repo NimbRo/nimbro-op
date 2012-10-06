@@ -1,14 +1,14 @@
-From a90985d6a4e3bd5259dd6ffc22088f899144ea41 Mon Sep 17 00:00:00 2001
+From f288900f9fd2911c91df4f09b9fe0297068de045 Mon Sep 17 00:00:00 2001
 From: Max Schwarz <Max@x-quadraht.de>
-Date: Sat, 6 Oct 2012 15:30:19 +0200
-Subject: [PATCH 12/26] Walking: tuned for NimbRo-OP
+Date: Sat, 6 Oct 2012 16:37:19 +0200
+Subject: [PATCH 12/25] Walking: tuned for NimbRo-OP
 
 Changes:
  - general parameter tuning
  - smooth start
  - spline-based pitch balance algorithm
 ---
- Data/config.ini                                |   50 +++---
+ Data/config.ini                                |   42 ++++-
  Framework/include/MotionState.h                |   19 +++
  Framework/include/QuadraticStateTransform.h    |   27 +++
  Framework/include/Walking.h                    |   21 +++
@@ -18,14 +18,14 @@ Changes:
  Linux/build/Makefile                           |    2 +
  Linux/project/walk_tuner/cmd_process.cpp       |  152 ++++++++++++++++-
  Linux/project/walk_tuner/cmd_process.h         |    7 +
- 10 files changed, 550 insertions(+), 63 deletions(-)
+ 10 files changed, 558 insertions(+), 47 deletions(-)
  create mode 100644 Framework/include/MotionState.h
  create mode 100644 Framework/include/QuadraticStateTransform.h
  create mode 100644 Framework/src/math/MotionState.cpp
  create mode 100644 Framework/src/math/QuadraticStateTransform.cpp
 
 diff --git a/Data/config.ini b/Data/config.ini
-index 9b3b6a8..619cfac 100644
+index 0e01195..619cfac 100644
 --- a/Data/config.ini
 +++ b/Data/config.ini
 @@ -5,12 +5,12 @@ ID_03=2
@@ -45,41 +45,26 @@ index 9b3b6a8..619cfac 100644
  ID_13=853
  ID_14=-853
  ID_15=0
-@@ -43,28 +43,34 @@ ID_19=0
+@@ -42,6 +42,36 @@ ID_18=1
+ ID_19=0
  ID_20=0
  
- [Walking Config]
--x_offset=-10.000000
--y_offset=33.000000
--z_offset=5.000000
--roll_offset=5.900000
--pitch_offset=0.000000
++[Walking Config]
 +x_offset=-8.000000
 +y_offset=55.000000
 +z_offset=10.000000
 +roll_offset=10.000000
 +pitch_offset=-1.700000
- yaw_offset=0.000000
--hip_pitch_offset=13.000000
--period_time=846.000000
++yaw_offset=0.000000
 +hip_pitch_offset=2.500000
 +period_time=900.000000
- dsp_ratio=0.100000
- step_forward_back_ratio=0.260000
--foot_height=40.000000
--swing_right_left=20.000000
--swing_top_down=5.000000
--pelvis_offset=3.000000
++dsp_ratio=0.100000
++step_forward_back_ratio=0.260000
 +foot_height=12.000000
 +swing_right_left=1.400000
 +swing_top_down=0.000000
 +pelvis_offset=0.000000
- arm_swing_gain=1.500000
--balance_knee_gain=0.300000
--balance_ankle_pitch_gain=0.900000
--balance_hip_roll_gain=0.500000
--balance_ankle_roll_gain=1.000000
--p_gain=30
++arm_swing_gain=1.500000
 +balance_knee_gain=-0.000000
 +balance_ankle_pitch_gain=0.000000
 +balance_hip_roll_gain=0.000000
@@ -88,15 +73,16 @@ index 9b3b6a8..619cfac 100644
 +lean_fb_accel_gain=0.000000
 +lean_turn_gain=2.000000
 +p_gain=50
- i_gain=0
- d_gain=0
++i_gain=0
++d_gain=0
 +start_step_factor=1.000000
 +balance_angle_smooth_gain=0.910000
 +balance_angle_gain=0.100000
- 
++
  [Camera]
  Brightness=128
-@@ -80,3 +86,7 @@ min_saturation=72
+ Contrast=32
+@@ -56,3 +86,7 @@ min_saturation=72
  min_value=10
  min_percent=0.030000
  max_percent=30.000000

@@ -1,7 +1,7 @@
-From d49a19ab1804fdd0b4482192fed89c4face247ca Mon Sep 17 00:00:00 2001
+From 814732f54af6334101068083354960efbc9f2f08 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Mon, 1 Oct 2012 14:50:14 +0000
-Subject: [PATCH 16/26] Fall protection implementation
+Subject: [PATCH 16/25] Fall protection implementation
 
 ---
  Framework/include/MotionManager.h      |   14 ++-

@@ -1,7 +1,7 @@
-From 5863c2989733e8e26e6bdf20521cbbdb4f1a9fdd Mon Sep 17 00:00:00 2001
+From d4136934c01fbe2c1dc71ff20deab64ee4ad3e4e Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Fri, 28 Sep 2012 13:42:43 +0000
-Subject: [PATCH 23/26] offset_tuner: use current pose as init pose
+Subject: [PATCH 22/25] offset_tuner: use current pose as init pose
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@191 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---

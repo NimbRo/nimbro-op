@@ -1,7 +1,7 @@
-From ee98047fd8afa80b11e4ccd88b10d9eaf783f09c Mon Sep 17 00:00:00 2001
+From 4b3989fbceacf787f0c222aedc163d29a6b4fa40 Mon Sep 17 00:00:00 2001
 From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Mon, 17 Sep 2012 15:54:42 +0000
-Subject: [PATCH 14/26] demo: wait for motion stop before doing critical stuff
+Subject: [PATCH 14/25] demo: wait for motion stop before doing critical stuff
 
 ---
  Linux/project/demo/StatusCheck.cpp |    3 +++

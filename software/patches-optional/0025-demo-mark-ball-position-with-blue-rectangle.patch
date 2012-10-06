@@ -1,7 +1,7 @@
-From ae063e093a2130feab2ec42a51dd8908eb46b86c Mon Sep 17 00:00:00 2001
+From b86f1ee1b8531a9d37339d9d3002c9bd0f9de697 Mon Sep 17 00:00:00 2001
 From: Max Schwarz <Max@x-quadraht.de>
 Date: Sat, 6 Oct 2012 15:25:39 +0200
-Subject: [PATCH 26/26] demo: mark ball position with blue rectangle
+Subject: [PATCH 25/25] demo: mark ball position with blue rectangle
 
 ---
  Linux/project/demo/main.cpp |   18 ++++++++++++++++++

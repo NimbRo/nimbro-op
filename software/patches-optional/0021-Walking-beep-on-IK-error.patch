@@ -1,7 +1,7 @@
-From c7d8a0b414aa91d4f2e0daa99eb08ec62e5c47ef Mon Sep 17 00:00:00 2001
+From 2561efe80d6fcc103948eae8d6ccbe481aa8045e Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 25 Jul 2012 15:33:54 +0000
-Subject: [PATCH 22/26] Walking: beep on IK error
+Subject: [PATCH 21/25] Walking: beep on IK error
 
 ---
  Framework/include/CM730.h                |    1 +

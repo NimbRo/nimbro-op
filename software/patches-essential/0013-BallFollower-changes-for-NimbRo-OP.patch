@@ -1,7 +1,7 @@
-From cfa203bedf55c8f155789447b3a6f98be52616db Mon Sep 17 00:00:00 2001
+From 485088470cd61f78f2f40b7914025cfdb3042f7e Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 29 Aug 2012 15:02:03 +0000
-Subject: [PATCH 13/26] BallFollower: changes for NimbRo-OP
+Subject: [PATCH 13/25] BallFollower: changes for NimbRo-OP
 
 Changes:
  - do not stop walking if no ball is seen

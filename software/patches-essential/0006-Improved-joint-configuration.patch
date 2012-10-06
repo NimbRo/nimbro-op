@@ -1,14 +1,15 @@
-From cdd5895be709a9b5796417022eb56f3b34ae632b Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Tue, 24 Jul 2012 12:41:28 +0000
-Subject: [PATCH 06/26] Improved joint configuration
+From 59ce27caf18605915addea1b20f4890d47011d6d Mon Sep 17 00:00:00 2001
+From: Max Schwarz <Max@x-quadraht.de>
+Date: Sat, 6 Oct 2012 16:37:05 +0200
+Subject: [PATCH 06/25] Improved joint configuration
 
 Changes:
  - additional inversion flag
+ - offsets for NimbRo-OP
  - correct propagation of offsets
  - use low P gain for arms & head
 ---
- Data/config.ini                             |    8 +--
+ Data/config.ini                             |   43 ++++++++++++
  Framework/include/JointData.h               |    6 +-
  Framework/include/MotionManager.h           |    5 ++
  Framework/src/motion/JointData.cpp          |   25 ++++++-
@@ -22,34 +23,58 @@ Changes:
  Linux/project/offset_tuner/cmd_process.h    |    1 +
  Linux/project/walk_tuner/cmd_process.cpp    |    2 +-
  Linux/project/walk_tuner/main.cpp           |    3 +
- 14 files changed, 162 insertions(+), 62 deletions(-)
+ 14 files changed, 201 insertions(+), 58 deletions(-)
+ create mode 100644 Data/config.ini
 
 diff --git a/Data/config.ini b/Data/config.ini
-index 8485270..6a93cda 100644
---- a/Data/config.ini
+new file mode 100644
+index 0000000..9ec28e0
+--- /dev/null
 +++ b/Data/config.ini
-@@ -3,8 +3,8 @@ ID_01=2
- ID_02=2
- ID_03=2
- ID_04=-2
--ID_05=-312
--ID_06=309
+@@ -0,0 +1,43 @@
++[Offset]
++ID_01=2
++ID_02=2
++ID_03=2
++ID_04=-2
 +ID_05=0
 +ID_06=0
- ID_07=0
- ID_08=0
- ID_09=256
-@@ -25,8 +25,8 @@ ID_01=0
- ID_02=0
- ID_03=0
- ID_04=0
--ID_05=0
--ID_06=0
++ID_07=0
++ID_08=0
++ID_09=256
++ID_10=-256
++ID_11=-21
++ID_12=0
++ID_13=853
++ID_14=-853
++ID_15=0
++ID_16=0
++ID_17=-256
++ID_18=256
++ID_19=0
++ID_20=0
++
++[Invert]
++ID_01=0
++ID_02=0
++ID_03=0
++ID_04=0
 +ID_05=1
 +ID_06=1
- ID_07=0
- ID_08=0
- ID_09=1
++ID_07=0
++ID_08=0
++ID_09=1
++ID_10=1
++ID_11=1
++ID_12=1
++ID_13=1
++ID_14=1
++ID_15=1
++ID_16=1
++ID_17=1
++ID_18=1
++ID_19=0
++ID_20=0
 diff --git a/Framework/include/JointData.h b/Framework/include/JointData.h
 index 60254ed..f5010d8 100644
 --- a/Framework/include/JointData.h

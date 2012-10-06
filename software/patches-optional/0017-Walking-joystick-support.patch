@@ -1,7 +1,7 @@
-From 5b4594ab50dbb01d6ec291b265f2f013a86ffae1 Mon Sep 17 00:00:00 2001
+From aac75a6c61d185da13cda3d8a2ed2cd726940d76 Mon Sep 17 00:00:00 2001
 From: Max Schwarz <Max@x-quadraht.de>
 Date: Sat, 6 Oct 2012 15:28:20 +0200
-Subject: [PATCH 18/26] Walking: joystick support
+Subject: [PATCH 17/25] Walking: joystick support
 
 ---
  Framework/include/Walking.h              |   15 ++++++++

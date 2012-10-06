@@ -1,7 +1,7 @@
-From b0028ff60b182e98c443d13090862337543bf975 Mon Sep 17 00:00:00 2001
+From 976e258ff417e92e70c81dd589f681d97fc2382d Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 3 Oct 2012 15:31:43 +0000
-Subject: [PATCH 20/26] demo: tweaked for IROS
+Subject: [PATCH 19/25] demo: tweaked for IROS
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@205 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---

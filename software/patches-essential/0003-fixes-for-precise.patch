@@ -1,7 +1,7 @@
-From 32306234631835cd059703789ec1eb039d56f7b8 Mon Sep 17 00:00:00 2001
+From c4c4e05aa0b35e684b4b82c3ed88224e0c9afc02 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Tue, 24 Jul 2012 12:41:27 +0000
-Subject: [PATCH 03/26] fixes for precise
+Subject: [PATCH 03/25] fixes for precise
 
 Source: http://www.robotsource.org/xe/8056
 

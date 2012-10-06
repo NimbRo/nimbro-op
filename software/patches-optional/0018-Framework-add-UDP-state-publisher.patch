@@ -1,7 +1,7 @@
-From 868931e3c5076dd15b5e48881d652cedf5247be3 Mon Sep 17 00:00:00 2001
+From af6e3edc32ec62effaadfd640ac9007c79372e5a Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 3 Oct 2012 15:31:43 +0000
-Subject: [PATCH 19/26] Framework: add UDP state publisher
+Subject: [PATCH 18/25] Framework: add UDP state publisher
 
 ---
  Framework/include/MotionManager.h      |   12 +++

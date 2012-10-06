@@ -1,7 +1,7 @@
-From b3dee430cfd377d409152d83911e40fb62349eea Mon Sep 17 00:00:00 2001
+From 4a2e02fe7bd163a69423bc39cdbf947d657b1b73 Mon Sep 17 00:00:00 2001
 From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Tue, 25 Sep 2012 13:34:35 +0000
-Subject: [PATCH 15/26] BallTracker: Added Offset to fix Ball position
+Subject: [PATCH 15/25] BallTracker: Added Offset to fix Ball position
 
 ---
  Framework/include/BallTracker.h      |    4 +++-

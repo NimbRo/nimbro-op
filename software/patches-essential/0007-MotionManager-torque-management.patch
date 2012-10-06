@@ -1,7 +1,7 @@
-From fc50dc695ca4991066df907903f998fca15f46cc Mon Sep 17 00:00:00 2001
+From 88ca5926fc8f43f95edb9e99019a47913feebba1 Mon Sep 17 00:00:00 2001
 From: Max Schwarz <Max@x-quadraht.de>
 Date: Fri, 5 Oct 2012 14:07:56 +0200
-Subject: [PATCH 07/26] MotionManager: torque management
+Subject: [PATCH 07/25] MotionManager: torque management
 
 Changes:
  - fade in torque on startup
