@@ -2,6 +2,9 @@
 NimbRo-OP software & CAD files release
 ======================================
 
+Software
+--------
+
 This repository contains patches against the ROBOTIS software for DARwIn OP
 to make it work with [our](http://ais.uni-bonn.de) [NimbRo-OP](http://nimbro.net/OP)
 humanoid TeenSize robot.
@@ -11,7 +14,20 @@ The patches apply against version 1.5.0, which is available at
 and the sub controller code version 0x13, available
 [here](http://sourceforge.net/projects/darwinop/files/Software/Sub%20Controller/CM730_FIRMWARE_VER0x13_20110922.zip/download).
 
+In order to get you started we include a shell script (fetch_and_patch.sh) to download
+the correct files and patch the sources. Simply call it by
+
+	./fetch_and_patch.sh
+
+and it will set everything up for you.
+
+CAD files
+---------
+
 Additionally, the CAD drawings of the robot will be made available.
+
+Links
+-----
 
 For more information, take a look at our webpages:
 
