@@ -12,3 +12,8 @@ and the sub controller code version 0x13, available
 [here](http://sourceforge.net/projects/darwinop/files/Software/Sub%20Controller/CM730_FIRMWARE_VER0x13_20110922.zip/download).
 
 Additionally, the CAD drawings of the robot will be made available.
+
+For more information, take a look at our webpages:
+
+* NimbRo-OP: http://nimbro.net/OP
+* Autonomous Intelligent Systems: http://ais.uni-bonn.de
