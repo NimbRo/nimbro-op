@@ -26,6 +26,13 @@ CAD files
 
 Additionally, the CAD drawings of the robot will be made available.
 
+Authors & License
+-----------------
+
+The patches and CAD robot parts were developed at the [Autonomous Intelligent Systems Group](http://ais.uni-bonn.de),
+[Rheinische Friedrich-Wilhelms-Universität Bonn](http://www.uni-bonn.de). The contents of this repository are released
+under the BSD-3 license (see LICENSE file for details).
+
 Links
 -----
 
