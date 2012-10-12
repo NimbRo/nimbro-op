@@ -1,4 +1,4 @@
-
+﻿
 NimbRo-OP software & CAD files release
 ======================================
 
@@ -24,14 +24,23 @@ and it will set everything up for you.
 CAD files
 ---------
 
-Additionally, the CAD drawings of the robot will be made available.
+CAD drawings of the robot are available in the Hardware folder.
+
+
+Documentation
+-------------
+
+Documetation & Manuals will be available soon. 
+
 
 Authors & License
 -----------------
 
 The patches and CAD robot parts were developed at the [Autonomous Intelligent Systems Group](http://ais.uni-bonn.de),
-[Rheinische Friedrich-Wilhelms-Universität Bonn](http://www.uni-bonn.de). The contents of this repository are released
+[Rheinische Friedrich-Wilhelms-Universität Bonn](http://www.uni-bonn.de). The software contents of this repository are released
 under the BSD-3 license (see LICENSE file for details).
+The CAD drawings of this repository are released under the Attribution-NonCommercial-ShareAlike 3.0 (CC BY-NC-SA 3.0) license 
+(see "HARDWARE LICENSE CreativeCommonsLicense CC BY-NC-SA 3.0.txt" for details).
 
 Links
 -----
