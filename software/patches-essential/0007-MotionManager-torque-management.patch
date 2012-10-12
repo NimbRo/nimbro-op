@@ -1,17 +1,17 @@
-From 88ca5926fc8f43f95edb9e99019a47913feebba1 Mon Sep 17 00:00:00 2001
-From: Max Schwarz <Max@x-quadraht.de>
-Date: Fri, 5 Oct 2012 14:07:56 +0200
-Subject: [PATCH 07/25] MotionManager: torque management
+From 414288f904e41d5740fc508274890670bda7712e Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 13:17:20 +0200
+Subject: [PATCH 07/26] MotionManager: torque management
 
 Changes:
  - fade in torque on startup
  - include torque adaption to battery voltage
    improves the tuning situation.
 ---
- Framework/include/MotionManager.h      |   13 ++++-
- Framework/src/motion/MotionManager.cpp |   96 +++++++++++++++++++++++++++-----
- Linux/project/offset_tuner/main.cpp    |    2 +-
- 3 files changed, 94 insertions(+), 17 deletions(-)
+ Framework/include/MotionManager.h      | 13 +++++-
+ Framework/src/motion/MotionManager.cpp | 79 ++++++++++++++++++++++++++++++----
+ Linux/project/offset_tuner/main.cpp    |  2 +-
+ 3 files changed, 83 insertions(+), 11 deletions(-)
 
 diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
 index 0ab145e..3419f79 100644
@@ -52,10 +52,10 @@ index 0ab145e..3419f79 100644
          void Process();
  		void SetEnable(bool enable);
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index ff1dbc9..4837b5d 100644
+index ff1dbc9..dd2d0c0 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
-@@ -11,39 +11,56 @@
+@@ -11,9 +11,16 @@
  #include "MX28.h"
  #include "MotionManager.h"
  #include <unistd.h>
@@ -72,22 +72,14 @@ index ff1dbc9..4837b5d 100644
  MotionManager* MotionManager::m_UniqueInstance = new MotionManager();
  
  MotionManager::MotionManager() :
--        m_CM730(0),
--        m_ProcessEnable(false),
--        m_Enabled(false),
--        m_IsRunning(false),
--        m_IsThreadRunning(false),
--        m_IsLogging(false),
+@@ -23,27 +30,35 @@ MotionManager::MotionManager() :
+         m_IsRunning(false),
+         m_IsThreadRunning(false),
+         m_IsLogging(false),
 -        DEBUG_PRINT(false)
-+    m_CM730(0),
-+    m_ProcessEnable(false),
-+    m_Enabled(false),
-+    m_IsRunning(false),
-+    m_IsThreadRunning(false),
-+    m_IsLogging(false),
++        DEBUG_PRINT(false),
 +    m_torqueAdaptionCounter(TORQUE_ADAPTION_CYCLES),
-+    m_voltageAdaptionFactor(1.0),
-+    DEBUG_PRINT(false)
++    m_voltageAdaptionFactor(1.0)
  {
      for(int i = 0; i < JointData::NUMBER_OF_JOINTS; i++)
      {
@@ -111,17 +103,15 @@ index ff1dbc9..4837b5d 100644
  	int value, error;
  
 +
-+	
 +	usleep(10000);
  	m_CM730 = cm730;
  	m_Enabled = false;
  	m_ProcessEnable = true;
 -
-+	
  	if(m_CM730->Connect() == false)
  	{
  		if(DEBUG_PRINT == true)
-@@ -74,9 +91,21 @@ bool MotionManager::Initialize(CM730 *cm730)
+@@ -74,10 +89,20 @@ bool MotionManager::Initialize(CM730 *cm730)
  		}
  	}
  
@@ -137,24 +127,22 @@ index ff1dbc9..4837b5d 100644
  	m_CalibrationStatus = 0;
  	m_FBGyroCenter = 512;
  	m_RLGyroCenter = 512;
-+	
-+
-+		
  
++
  	return true;
  }
-@@ -87,6 +116,10 @@ bool MotionManager::Reinitialize()
+ 
+@@ -87,6 +112,9 @@ bool MotionManager::Reinitialize()
  
  	m_CM730->DXLPowerOn();
  
 +
 +
 +
-+	
  	int value, error;
  	for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
  	{
-@@ -179,6 +212,11 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+@@ -179,6 +207,11 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
  #define MARGIN_OF_SD        2.0
  void MotionManager::Process()
  {
@@ -166,7 +154,7 @@ index ff1dbc9..4837b5d 100644
      if(m_ProcessEnable == false || m_IsRunning == true)
          return;
  
-@@ -305,7 +343,10 @@ void MotionManager::Process()
+@@ -305,7 +338,10 @@ void MotionManager::Process()
  #else
                  param[n++] = MotionStatus::m_CurrentJoints.GetDGain(id);
                  param[n++] = MotionStatus::m_CurrentJoints.GetIGain(id);
@@ -178,7 +166,7 @@ index ff1dbc9..4837b5d 100644
                  param[n++] = 0;
  #endif
  
-@@ -351,6 +392,12 @@ void MotionManager::Process()
+@@ -351,6 +387,12 @@ void MotionManager::Process()
          MotionStatus::BUTTON = m_CM730->m_BulkReadData[CM730::ID_CM].ReadByte(CM730::P_BUTTON);
  
      m_IsRunning = false;
@@ -191,7 +179,7 @@ index ff1dbc9..4837b5d 100644
  }
  
  void MotionManager::SetEnable(bool enable)
-@@ -391,9 +438,30 @@ int MotionManager::applyOffset(int id, int position)
+@@ -391,9 +433,30 @@ int MotionManager::applyOffset(int id, int position)
  
  int MotionManager::removeOffset(int id, int position)
  {
@@ -240,5 +228,5 @@ index 8d4701d..2d9adbc 100644
          printf("Initializing Motion Manager failed!\n");
          return 0;
 -- 
-1.7.9.5
+1.7.11.7
 

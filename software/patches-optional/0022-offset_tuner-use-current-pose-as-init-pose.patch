@@ -1,18 +1,18 @@
-From d4136934c01fbe2c1dc71ff20deab64ee4ad3e4e Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Fri, 28 Sep 2012 13:42:43 +0000
-Subject: [PATCH 22/25] offset_tuner: use current pose as init pose
+From 91c12756e6cee8a5d0f8dd7d6907833c720d3493 Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:33:49 +0200
+Subject: [PATCH 22/26] offset_tuner: use current pose as init pose
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@191 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Linux/project/offset_tuner/cmd_process.cpp |   44 ++++++++++++++++------------
- 1 file changed, 26 insertions(+), 18 deletions(-)
+ Linux/project/offset_tuner/cmd_process.cpp | 41 +++++++++++++++++-------------
+ 1 file changed, 23 insertions(+), 18 deletions(-)
 
 diff --git a/Linux/project/offset_tuner/cmd_process.cpp b/Linux/project/offset_tuner/cmd_process.cpp
-index eb5c659..84e93c8 100644
+index eb5c659..6f3e966 100644
 --- a/Linux/project/offset_tuner/cmd_process.cpp
 +++ b/Linux/project/offset_tuner/cmd_process.cpp
-@@ -246,28 +246,36 @@ void DrawIntro(CM730 *cm730)
+@@ -246,28 +246,33 @@ void DrawIntro(CM730 *cm730)
      int param[JointData::NUMBER_OF_JOINTS * 5];
      int wGoalPosition, wStartPosition, wDistance;
  
@@ -25,18 +25,15 @@ index eb5c659..84e93c8 100644
 +//             wDistance = wStartPosition - wGoalPosition;
 +//         else
 +//             wDistance = wGoalPosition - wStartPosition;
-+// 
 +//         wDistance >>= 3;
 +//         if( wDistance < 8 )
 +//             wDistance = 8;
-+// 
 +//         param[n++] = id;
 +//         param[n++] = CM730::GetLowByte(wGoalPosition);
 +//         param[n++] = CM730::GetHighByte(wGoalPosition);
 +//         param[n++] = CM730::GetLowByte(wDistance);
 +//         param[n++] = CM730::GetHighByte(wDistance);
 +//     }
-+// 
 +//     cm730->SyncWrite(MX28::P_GOAL_POSITION_L, 5, JointData::NUMBER_OF_JOINTS - 1, param);
 +
 +    for(int id = JointData::ID_R_SHOULDER_PITCH; id < JointData::NUMBER_OF_JOINTS; ++id)
@@ -68,5 +65,5 @@ index eb5c659..84e93c8 100644
      setupterm(NULL, fileno(stdout), (int *)0);
      nrows = tigetnum("lines");
 -- 
-1.7.9.5
+1.7.11.7
 

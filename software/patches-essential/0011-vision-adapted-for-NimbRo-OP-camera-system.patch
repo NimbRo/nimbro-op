@@ -1,7 +1,7 @@
-From d3673c046f4fab69bf7c2ae94a3788e1ea4b84cf Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Tue, 24 Jul 2012 12:41:28 +0000
-Subject: [PATCH 11/25] vision: adapted for NimbRo-OP camera system
+From 239e5cde82b9254b7aa412fb05da235934989f8d Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:21:15 +0200
+Subject: [PATCH 11/26] vision: adapted for NimbRo-OP camera system
 
 Changes:
  - do not flip camera images
@@ -11,15 +11,15 @@ Changes:
  - Head: pgain tuning
  - Kinematics: changed eye tilt offset angle
 ---
- Data/config.ini                       |   15 ++++++++++
- Framework/include/ColorFinder.h       |    3 +-
- Framework/include/Kinematics.h        |    2 +-
- Framework/src/motion/modules/Head.cpp |   52 ++++++++++++++++++++-------------
- Framework/src/vision/BallFollower.cpp |    3 +-
- Framework/src/vision/BallTracker.cpp  |    6 ++--
- Framework/src/vision/ColorFinder.cpp  |   32 +++++++++++++++++---
- Linux/build/LinuxCamera.cpp           |    2 --
- Linux/project/demo/main.cpp           |    4 ++-
+ Data/config.ini                       | 15 ++++++++++
+ Framework/include/ColorFinder.h       |  3 +-
+ Framework/include/Kinematics.h        |  2 +-
+ Framework/src/motion/modules/Head.cpp | 52 +++++++++++++++++++++--------------
+ Framework/src/vision/BallFollower.cpp |  3 +-
+ Framework/src/vision/BallTracker.cpp  |  6 ++--
+ Framework/src/vision/ColorFinder.cpp  | 32 ++++++++++++++++++---
+ Linux/build/LinuxCamera.cpp           |  2 --
+ Linux/project/demo/main.cpp           |  4 ++-
  9 files changed, 86 insertions(+), 33 deletions(-)
 
 diff --git a/Data/config.ini b/Data/config.ini
@@ -305,5 +305,5 @@ index fd30a6d..5864bfa 100644
              for(int i = 0; i < rgb_output->m_NumberOfPixels; i++)
              {
 -- 
-1.7.9.5
+1.7.11.7
 

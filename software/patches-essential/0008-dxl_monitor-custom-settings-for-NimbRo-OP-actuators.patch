@@ -1,13 +1,13 @@
-From 052ab9f6aa34d309837563f04bdd0b7862bc48b3 Mon Sep 17 00:00:00 2001
-From: Max Schwarz <Max@x-quadraht.de>
-Date: Fri, 5 Oct 2012 14:14:00 +0200
-Subject: [PATCH 08/25] dxl_monitor: custom settings for NimbRo-OP actuators
+From b62cd1efbbc716b4294c0ccab15229241c2d8827 Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:13:19 +0200
+Subject: [PATCH 08/26] dxl_monitor: custom settings for NimbRo-OP actuators
 
 Changes:
  - do not overwrite custom limits
  - lower torque limits on Head Servos
 ---
- Linux/project/dxl_monitor/cmd_process.cpp |  143 +++--------------------------
+ Linux/project/dxl_monitor/cmd_process.cpp | 143 +++---------------------------
  1 file changed, 14 insertions(+), 129 deletions(-)
 
 diff --git a/Linux/project/dxl_monitor/cmd_process.cpp b/Linux/project/dxl_monitor/cmd_process.cpp
@@ -213,5 +213,5 @@ index 6085c06..7de7ff0 100644
              || addr == MX28::P_CW_COMPLIANCE_MARGIN
              || addr == MX28::P_CCW_COMPLIANCE_MARGIN
 -- 
-1.7.9.5
+1.7.11.7
 

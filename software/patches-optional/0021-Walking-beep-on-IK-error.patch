@@ -1,13 +1,13 @@
-From 2561efe80d6fcc103948eae8d6ccbe481aa8045e Mon Sep 17 00:00:00 2001
+From 5abe70a90a5eaba66358333e4e19e9b2cc092ade Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 25 Jul 2012 15:33:54 +0000
-Subject: [PATCH 21/25] Walking: beep on IK error
+Subject: [PATCH 21/26] Walking: beep on IK error
 
 ---
- Framework/include/CM730.h                |    1 +
- Framework/include/MotionManager.h        |    3 +++
- Framework/src/CM730.cpp                  |    7 +++++++
- Framework/src/motion/modules/Walking.cpp |    5 +++++
+ Framework/include/CM730.h                | 1 +
+ Framework/include/MotionManager.h        | 3 +++
+ Framework/src/CM730.cpp                  | 7 +++++++
+ Framework/src/motion/modules/Walking.cpp | 5 +++++
  4 files changed, 16 insertions(+)
 
 diff --git a/Framework/include/CM730.h b/Framework/include/CM730.h
@@ -52,7 +52,7 @@ index 7123d08..a97f093 100644
 +	return 0;
 +}
 diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
-index 267721f..ca5012c 100644
+index ae663b1..37bb5ca 100644
 --- a/Framework/src/motion/modules/Walking.cpp
 +++ b/Framework/src/motion/modules/Walking.cpp
 @@ -14,11 +14,15 @@
@@ -80,5 +80,5 @@ index 267721f..ca5012c 100644
  	}
  
 -- 
-1.7.9.5
+1.7.11.7
 

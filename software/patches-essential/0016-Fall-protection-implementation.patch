@@ -1,16 +1,16 @@
-From 814732f54af6334101068083354960efbc9f2f08 Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Mon, 1 Oct 2012 14:50:14 +0000
-Subject: [PATCH 16/25] Fall protection implementation
+From a1e1f1443eca5d83980149609eeb60bb7e97ec94 Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:27:54 +0200
+Subject: [PATCH 16/26] Fall protection implementation
 
 ---
- Framework/include/MotionManager.h      |   14 ++-
- Framework/include/MotionStatus.h       |   22 +++-
- Framework/src/motion/MotionManager.cpp |  182 +++++++++++++++++++++++---------
- Framework/src/motion/MotionStatus.cpp  |    3 +-
- Linux/project/demo/StatusCheck.cpp     |   67 +++++++++---
- Linux/project/demo/main.cpp            |    4 +-
- 6 files changed, 219 insertions(+), 73 deletions(-)
+ Framework/include/MotionManager.h      |  14 ++-
+ Framework/include/MotionStatus.h       |  22 ++++-
+ Framework/src/motion/MotionManager.cpp | 172 ++++++++++++++++++++++++---------
+ Framework/src/motion/MotionStatus.cpp  |   3 +-
+ Linux/project/demo/StatusCheck.cpp     |  67 ++++++++++---
+ Linux/project/demo/main.cpp            |   4 +-
+ 6 files changed, 215 insertions(+), 67 deletions(-)
 
 diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
 index 3c7a9fe..b262097 100644
@@ -92,16 +92,17 @@ index 626f34c..60147df 100644
  }
  
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index 308f2bb..226710a 100644
+index de89ebd..9df97d3 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -32,8 +32,13 @@ MotionManager::MotionManager() :
-     m_IsLogging(false),
+         m_IsLogging(false),
+         DEBUG_PRINT(false),
      m_torqueAdaptionCounter(TORQUE_ADAPTION_CYCLES),
-     m_voltageAdaptionFactor(1.0),
+-    m_voltageAdaptionFactor(1.0)
++    m_voltageAdaptionFactor(1.0),
 +    m_buf_idx(0),
-+    m_fallProtectionEnabled(false),
-     DEBUG_PRINT(false)
++    m_fallProtectionEnabled(false)
  {
 +    for(int i = 0; i < ACCEL_WINDOW_SIZE; ++i)
 +        m_fb_array[i] = 0;
@@ -109,38 +110,23 @@ index 308f2bb..226710a 100644
      for(int i = 0; i < JointData::NUMBER_OF_JOINTS; i++)
      {
          m_Offset[i] = 0;
-@@ -112,14 +117,13 @@ bool MotionManager::Initialize(CM730 *cm730, bool fadeIn)
+@@ -114,6 +119,7 @@ bool MotionManager::Reinitialize()
  
- bool MotionManager::Reinitialize()
- {
--	m_ProcessEnable = false;
--
--	m_CM730->DXLPowerOn();
--
-+    m_ProcessEnable = false;
  
-+    m_CM730->DXLPowerOn();
-+    DEBUG_PRINT = true;
  
 +	m_CM730->DXLPowerOn();
  
--	
  	int value, error;
  	for(int id=JointData::ID_R_SHOULDER_PITCH; id<JointData::NUMBER_OF_JOINTS; id++)
- 	{
-@@ -144,8 +148,9 @@ bool MotionManager::Reinitialize()
- 		}
- 	}
+@@ -141,6 +147,7 @@ bool MotionManager::Reinitialize()
  
--	m_ProcessEnable = true;
--	return true;
+ 	m_ProcessEnable = true;
+ 	return true;
 +    DEBUG_PRINT = false;
-+    m_ProcessEnable = true;
-+    return true;
  }
  
  void MotionManager::StartLogging()
-@@ -212,13 +217,21 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+@@ -207,13 +214,21 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
  }
  
  #define GYRO_WINDOW_SIZE    100
@@ -166,7 +152,7 @@ index 308f2bb..226710a 100644
      }
  
      if(m_ProcessEnable == false || m_IsRunning == true)
-@@ -289,8 +302,6 @@ void MotionManager::Process()
+@@ -284,8 +299,6 @@ void MotionManager::Process()
  
      if(m_CalibrationStatus == 1 && m_Enabled == true)
      {
@@ -175,7 +161,7 @@ index 308f2bb..226710a 100644
          if(m_CM730->m_BulkReadData[CM730::ID_CM].error == 0)
          {
              const double GYRO_ALPHA = 0.1;
-@@ -302,9 +313,6 @@ void MotionManager::Process()
+@@ -297,9 +310,6 @@ void MotionManager::Process()
              MotionStatus::RL_ACCEL = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_X_L);
              MotionStatus::FB_ACCEL = m_CM730->m_BulkReadData[CM730::ID_CM].ReadWord(CM730::P_ACCEL_Y_L);
  
@@ -185,17 +171,17 @@ index 308f2bb..226710a 100644
              const double TICKS_TO_RADIANS_PER_STEP = (M_PI/180.0) * 250.0/512.0 * (0.001 * MotionModule::TIME_UNIT);
              m_angleEstimator.predict(
                 -TICKS_TO_RADIANS_PER_STEP * gyroValFB,
-@@ -320,19 +328,10 @@ void MotionManager::Process()
+@@ -315,19 +325,10 @@ void MotionManager::Process()
  
              MotionStatus::ANGLE_PITCH = m_angleEstimator.pitch();
              MotionStatus::ANGLE_ROLL  = m_angleEstimator.roll();
 -        }
- 
+-
 -        int sum = 0, avr = 512;
 -        for(int idx = 0; idx < ACCEL_WINDOW_SIZE; idx++)
 -            sum += fb_array[idx];
 -        avr = sum / ACCEL_WINDOW_SIZE;
--
+ 
 -        if(avr < MotionStatus::FALLEN_F_LIMIT)
 -            MotionStatus::FALLEN = FORWARD;
 -        else if(avr > MotionStatus::FALLEN_B_LIMIT)
@@ -208,7 +194,7 @@ index 308f2bb..226710a 100644
  
          if(m_Modules.size() != 0)
          {
-@@ -354,14 +353,16 @@ void MotionManager::Process()
+@@ -349,14 +350,16 @@ void MotionManager::Process()
              }
          }
  
@@ -231,7 +217,7 @@ index 308f2bb..226710a 100644
  #ifdef MX28_1024
                  param[n++] = MotionStatus::m_CurrentJoints.GetCWSlope(id);
                  param[n++] = MotionStatus::m_CurrentJoints.GetCCWSlope(id);
-@@ -375,24 +376,27 @@ void MotionManager::Process()
+@@ -370,24 +373,27 @@ void MotionManager::Process()
                  param[n++] = 0;
  #endif
  
@@ -268,7 +254,7 @@ index 308f2bb..226710a 100644
      }
  
      m_CM730->BulkRead();
-@@ -417,12 +421,6 @@ void MotionManager::Process()
+@@ -412,12 +418,6 @@ void MotionManager::Process()
          MotionStatus::BUTTON = m_CM730->m_BulkReadData[CM730::ID_CM].ReadByte(CM730::P_BUTTON);
  
      m_IsRunning = false;
@@ -281,7 +267,7 @@ index 308f2bb..226710a 100644
  }
  
  void MotionManager::SetEnable(bool enable)
-@@ -490,3 +488,89 @@ void MotionManager::adaptTorqueToVoltage()
+@@ -485,3 +485,89 @@ void MotionManager::adaptTorqueToVoltage()
  
      m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, torque, 0);
  }
@@ -487,5 +473,5 @@ index 7745558..a91ca59 100644
                  Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
                  Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 -- 
-1.7.9.5
+1.7.11.7
 

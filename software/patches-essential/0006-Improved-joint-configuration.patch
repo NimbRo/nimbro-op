@@ -1,7 +1,7 @@
-From 59ce27caf18605915addea1b20f4890d47011d6d Mon Sep 17 00:00:00 2001
-From: Max Schwarz <Max@x-quadraht.de>
-Date: Sat, 6 Oct 2012 16:37:05 +0200
-Subject: [PATCH 06/25] Improved joint configuration
+From 04a6dcecc2ea09123da2abce058ba650cb5e2a2a Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:09:47 +0200
+Subject: [PATCH 06/26] Improved joint configuration
 
 Changes:
  - additional inversion flag
@@ -9,20 +9,20 @@ Changes:
  - correct propagation of offsets
  - use low P gain for arms & head
 ---
- Data/config.ini                             |   43 ++++++++++++
- Framework/include/JointData.h               |    6 +-
- Framework/include/MotionManager.h           |    5 ++
- Framework/src/motion/JointData.cpp          |   25 ++++++-
- Framework/src/motion/MotionManager.cpp      |   33 +++++++++-
- Framework/src/motion/modules/Action.cpp     |    9 ++-
- Framework/src/motion/modules/Walking.cpp    |    9 +--
- Linux/project/action_editor/cmd_process.cpp |   17 ++++-
- Linux/project/action_editor/main.cpp        |    4 ++
- Linux/project/demo/main.cpp                 |    7 +-
- Linux/project/offset_tuner/cmd_process.cpp  |   95 +++++++++++++++++----------
- Linux/project/offset_tuner/cmd_process.h    |    1 +
- Linux/project/walk_tuner/cmd_process.cpp    |    2 +-
- Linux/project/walk_tuner/main.cpp           |    3 +
+ Data/config.ini                             | 43 +++++++++++++
+ Framework/include/JointData.h               |  6 +-
+ Framework/include/MotionManager.h           |  5 ++
+ Framework/src/motion/JointData.cpp          | 25 +++++++-
+ Framework/src/motion/MotionManager.cpp      | 33 +++++++++-
+ Framework/src/motion/modules/Action.cpp     |  9 ++-
+ Framework/src/motion/modules/Walking.cpp    |  9 +--
+ Linux/project/action_editor/cmd_process.cpp | 17 +++++-
+ Linux/project/action_editor/main.cpp        |  4 ++
+ Linux/project/demo/main.cpp                 |  7 +--
+ Linux/project/offset_tuner/cmd_process.cpp  | 95 ++++++++++++++++++-----------
+ Linux/project/offset_tuner/cmd_process.h    |  1 +
+ Linux/project/walk_tuner/cmd_process.cpp    |  2 +-
+ Linux/project/walk_tuner/main.cpp           |  3 +
  14 files changed, 201 insertions(+), 58 deletions(-)
  create mode 100644 Data/config.ini
 
@@ -648,7 +648,7 @@ index cdb3b54..f32609b 100644
  			wDistance = wStartPosition - wGoalPosition;
  		else
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index d3c2949..f859e43 100644
+index d2d4389..807acca 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -56,7 +56,9 @@ int main(int argc, char *argv[])
@@ -669,5 +669,5 @@ index d3c2949..f859e43 100644
      return 0;
  }
 -- 
-1.7.9.5
+1.7.11.7
 

@@ -1,16 +1,16 @@
-From af6e3edc32ec62effaadfd640ac9007c79372e5a Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Wed, 3 Oct 2012 15:31:43 +0000
-Subject: [PATCH 18/25] Framework: add UDP state publisher
+From 2ae320a63924b477ce987ced2627f4bd336a48af Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:30:50 +0200
+Subject: [PATCH 18/26] Framework: add UDP state publisher
 
 ---
- Framework/include/MotionManager.h      |   12 +++
- Framework/include/State.h              |   94 ++++++++++++++++++
- Framework/src/State.cpp                |  166 ++++++++++++++++++++++++++++++++
- Framework/src/motion/MotionManager.cpp |   41 +++++++-
- Framework/src/vision/BallTracker.cpp   |   25 +++--
- Linux/build/Makefile                   |    1 +
- 6 files changed, 329 insertions(+), 10 deletions(-)
+ Framework/include/MotionManager.h      |  12 +++
+ Framework/include/State.h              |  94 +++++++++++++++++++
+ Framework/src/State.cpp                | 166 +++++++++++++++++++++++++++++++++
+ Framework/src/motion/MotionManager.cpp |  39 +++++++-
+ Framework/src/vision/BallTracker.cpp   |  25 +++--
+ Linux/build/Makefile                   |   1 +
+ 6 files changed, 329 insertions(+), 8 deletions(-)
  create mode 100644 Framework/include/State.h
  create mode 100644 Framework/src/State.cpp
 
@@ -334,7 +334,7 @@ index 0000000..4c986cb
 +
 +}
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index 226710a..950d10d 100644
+index 9df97d3..c4e9494 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -12,6 +12,9 @@
@@ -368,20 +368,17 @@ index 226710a..950d10d 100644
  }
  
  MotionManager::~MotionManager()
-@@ -108,11 +125,8 @@ bool MotionManager::Initialize(CM730 *cm730, bool fadeIn)
- 	m_CalibrationStatus = 0;
+@@ -107,8 +124,7 @@ bool MotionManager::Initialize(CM730 *cm730, bool fadeIn)
  	m_FBGyroCenter = 512;
  	m_RLGyroCenter = 512;
--	
--
--		
  
+-
 -	return true;
 +    return true;
  }
  
  bool MotionManager::Reinitialize()
-@@ -574,3 +588,22 @@ void MotionManager::fallProtection()
+@@ -571,3 +587,22 @@ void MotionManager::fallProtection()
          }
      }
  }
@@ -461,7 +458,7 @@ index a996fb1..1de2bef 100644
  }
  
 diff --git a/Linux/build/Makefile b/Linux/build/Makefile
-index 7775eb7..c0a9703 100644
+index 4f51a55..791c9cd 100644
 --- a/Linux/build/Makefile
 +++ b/Linux/build/Makefile
 @@ -20,6 +20,7 @@ CXXFLAGS += -O2 -DLINUX -Wall -g -shared $(INCLUDE_DIRS)
@@ -473,5 +470,5 @@ index 7775eb7..c0a9703 100644
          ../../Framework/src/math/Plane.o    \
          ../../Framework/src/math/Point.o    \
 -- 
-1.7.9.5
+1.7.11.7
 

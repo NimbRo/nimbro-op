@@ -1,19 +1,19 @@
-From 5a0f7b263fa97884dc726df3d9bd89032db11817 Mon Sep 17 00:00:00 2001
-From: Max Schwarz <Max@x-quadraht.de>
-Date: Fri, 5 Oct 2012 15:21:41 +0200
-Subject: [PATCH 10/25] Simple angle estimator
+From afa1f25020706b592915fc2ef4e2f92676f4d5fa Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:14:58 +0200
+Subject: [PATCH 10/26] Simple angle estimator
 
 Uses a fused value from accelerometer angle estimation and gyro velocities.
 ---
- Framework/include/AngleEstimator.h      |   51 +++++++++++++++++++++++++++++++
- Framework/include/MotionManager.h       |    6 ++++
- Framework/include/MotionStatus.h        |    7 +++--
- Framework/src/motion/AngleEstimator.cpp |   51 +++++++++++++++++++++++++++++++
- Framework/src/motion/MotionManager.cpp  |   29 ++++++++++++++++--
- Framework/src/motion/MotionStatus.cpp   |    7 +++--
- Linux/build/Makefile                    |   41 +++++++++++++------------
- Linux/project/walk_tuner/main.cpp       |    2 ++
- 8 files changed, 168 insertions(+), 26 deletions(-)
+ Framework/include/AngleEstimator.h      | 51 +++++++++++++++++++++++++++++++++
+ Framework/include/MotionManager.h       |  6 ++++
+ Framework/include/MotionStatus.h        |  7 +++--
+ Framework/src/motion/AngleEstimator.cpp | 51 +++++++++++++++++++++++++++++++++
+ Framework/src/motion/MotionManager.cpp  | 29 +++++++++++++++++--
+ Framework/src/motion/MotionStatus.cpp   |  7 +++--
+ Linux/build/Makefile                    |  1 +
+ Linux/project/walk_tuner/main.cpp       |  2 ++
+ 8 files changed, 148 insertions(+), 6 deletions(-)
  create mode 100644 Framework/include/AngleEstimator.h
  create mode 100644 Framework/src/motion/AngleEstimator.cpp
 
@@ -184,10 +184,10 @@ index 0000000..ae22825
 +	ini->put(section, "acc_gain", m_acc_gain);
 +}
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index 4837b5d..308f2bb 100644
+index dd2d0c0..de89ebd 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
-@@ -191,6 +191,8 @@ void MotionManager::LoadINISettings(minIni* ini, const std::string &section)
+@@ -186,6 +186,8 @@ void MotionManager::LoadINISettings(minIni* ini, const std::string &section)
          if((ivalue = ini->geti(section, key, INVALID_VALUE)) != INVALID_VALUE)  m_Offset[i] = ivalue;
          if((ivalue = ini->geti(INVERT_SECTION, key, INVALID_VALUE)) != INVALID_VALUE) m_invert[i] = ivalue;
      }
@@ -196,7 +196,7 @@ index 4837b5d..308f2bb 100644
  }
  void MotionManager::SaveINISettings(minIni* ini)
  {
-@@ -205,6 +207,8 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+@@ -200,6 +202,8 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
          ini->put(section, key, m_Offset[i]);
  	ini->put(INVERT_SECTION, key, (int)m_invert[i]);
      }
@@ -205,7 +205,7 @@ index 4837b5d..308f2bb 100644
  }
  
  #define GYRO_WINDOW_SIZE    100
-@@ -289,12 +293,33 @@ void MotionManager::Process()
+@@ -284,12 +288,33 @@ void MotionManager::Process()
          static int buf_idx = 0;
          if(m_CM730->m_BulkReadData[CM730::ID_CM].error == 0)
          {
@@ -262,49 +262,10 @@ index ece9338..7a0f827 100644
 +double MotionStatus::ANGLE_PITCH(0);
 +double MotionStatus::ANGLE_ROLL(0);
 diff --git a/Linux/build/Makefile b/Linux/build/Makefile
-index b608861..a02b1df 100644
+index b608861..923526f 100644
 --- a/Linux/build/Makefile
 +++ b/Linux/build/Makefile
-@@ -1,11 +1,11 @@
--###############################################################
--#
--# Purpose: Makefile for "DARwIn Linux Framework"
--# Author.: robotis
--# Version: 0.1
--# License: GPL
--#
--###############################################################
-+###############################################################
-+#
-+# Purpose: Makefile for "DARwIn Linux Framework"
-+# Author.: robotis
-+# Version: 0.1
-+# License: GPL
-+#
-+###############################################################
- 
- CC = g++
- AR = ar
-@@ -13,13 +13,13 @@ ARFLAGS = cr
- 
- TARGET = darwin.a
- 
--INCLUDE_DIRS = -I../include -I../../Framework/include
--
--CXXFLAGS += -O2 -DLINUX -Wall -g -shared $(INCLUDE_DIRS)
--#CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall -shared $(INCLUDE_DIRS)
-+INCLUDE_DIRS = -I../include -I../../Framework/include
-+
-+CXXFLAGS += -O2 -DLINUX -Wall -g -shared $(INCLUDE_DIRS)
-+#CXXFLAGS += -O2 -DDEBUG -DLINUX -Wall -shared $(INCLUDE_DIRS)
- LFLAGS += -lpthread -ldl
- 
--OBJS =  ../../Framework/src/CM730.o     	\
-+OBJS =  ../../Framework/src/CM730.o     	\
-         ../../Framework/src/math/Matrix.o   \
-         ../../Framework/src/math/Plane.o    \
-         ../../Framework/src/math/Point.o    \
-@@ -28,18 +28,19 @@ OBJS =  ../../Framework/src/CM730.o     	\
+@@ -28,6 +28,7 @@ OBJS =  ../../Framework/src/CM730.o     	\
          ../../Framework/src/motion/Kinematics.o 	\
          ../../Framework/src/motion/MotionManager.o  \
          ../../Framework/src/motion/MotionStatus.o   \
@@ -312,33 +273,8 @@ index b608861..a02b1df 100644
          ../../Framework/src/motion/modules/Action.o \
          ../../Framework/src/motion/modules/Head.o   \
          ../../Framework/src/motion/modules/Walking.o\
-         ../../Framework/src/vision/BallFollower.o   \
--        ../../Framework/src/vision/BallTracker.o    \
-+        ../../Framework/src/vision/BallTracker.o    \
-         ../../Framework/src/vision/ColorFinder.o    \
-         ../../Framework/src/vision/Image.o  		\
--        ../../Framework/src/vision/ImgProcess.o 	\
--        ../../Framework/src/minIni/minIni.o	\
--        streamer/httpd.o           \
--        streamer/jpeg_utils.o      \
--        streamer/mjpg_streamer.o   \
-+        ../../Framework/src/vision/ImgProcess.o 	\
-+        ../../Framework/src/minIni/minIni.o	\
-+        streamer/httpd.o           \
-+        streamer/jpeg_utils.o      \
-+        streamer/mjpg_streamer.o   \
-         LinuxActionScript.o   \
-         LinuxCamera.o   \
-         LinuxCM730.o    \
-@@ -52,5 +53,5 @@ $(TARGET): $(OBJS)
- 
- all: $(TARGET)
- 
--clean:
-+clean:
- 	rm -f $(OBJS) ../lib/$(TARGET)
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index f859e43..3a6c5f2 100644
+index 807acca..b18fec8 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -67,6 +67,8 @@ int main(int argc, char *argv[])
@@ -351,5 +287,5 @@ index f859e43..3a6c5f2 100644
      {
          int ch = _getch();
 -- 
-1.7.9.5
+1.7.11.7
 

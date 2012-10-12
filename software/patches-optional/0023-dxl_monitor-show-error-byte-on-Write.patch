@@ -1,11 +1,11 @@
-From b9308c57171927f446b36d1c878a98b43f9431b1 Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Mon, 1 Oct 2012 14:50:14 +0000
-Subject: [PATCH 23/25] dxl_monitor: show error byte on Write()
+From 0cb17c65ac7b742db5e04da410daa9596bc718a5 Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:34:12 +0200
+Subject: [PATCH 23/26] dxl_monitor: show error byte on Write()
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@194 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Linux/project/dxl_monitor/cmd_process.cpp |    2 +-
+ Linux/project/dxl_monitor/cmd_process.cpp | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Linux/project/dxl_monitor/cmd_process.cpp b/Linux/project/dxl_monitor/cmd_process.cpp
@@ -22,5 +22,5 @@ index 3131617..4e17216 100644
  	}
  
 -- 
-1.7.9.5
+1.7.11.7
 

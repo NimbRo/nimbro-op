@@ -1,12 +1,12 @@
-From 4a2e02fe7bd163a69423bc39cdbf947d657b1b73 Mon Sep 17 00:00:00 2001
-From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Tue, 25 Sep 2012 13:34:35 +0000
-Subject: [PATCH 15/25] BallTracker: Added Offset to fix Ball position
+From c810012ff7ab5d54baa6d8a738cba8407e169370 Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:26:22 +0200
+Subject: [PATCH 15/26] BallTracker: Added Offset to fix Ball position
 
 ---
- Framework/include/BallTracker.h      |    4 +++-
- Framework/src/vision/BallTracker.cpp |   19 +++++++++++++++++++
- Linux/project/demo/main.cpp          |    2 ++
+ Framework/include/BallTracker.h      |  4 +++-
+ Framework/src/vision/BallTracker.cpp | 19 +++++++++++++++++++
+ Linux/project/demo/main.cpp          |  2 ++
  3 files changed, 24 insertions(+), 1 deletion(-)
 
 diff --git a/Framework/include/BallTracker.h b/Framework/include/BallTracker.h
@@ -81,5 +81,5 @@ index 2f34a15..7745558 100644
  
                      sleep(1);
 -- 
-1.7.9.5
+1.7.11.7
 

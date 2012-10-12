@@ -1,10 +1,10 @@
-From b86f1ee1b8531a9d37339d9d3002c9bd0f9de697 Mon Sep 17 00:00:00 2001
-From: Max Schwarz <Max@x-quadraht.de>
-Date: Sat, 6 Oct 2012 15:25:39 +0200
-Subject: [PATCH 25/25] demo: mark ball position with blue rectangle
+From f7cd7cd1bba87595e9736a8e1dad60c5fadc724b Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:35:40 +0200
+Subject: [PATCH 25/26] demo: mark ball position with blue rectangle
 
 ---
- Linux/project/demo/main.cpp |   18 ++++++++++++++++++
+ Linux/project/demo/main.cpp | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
 
 diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
@@ -37,5 +37,5 @@ index d7c7b91..20b9e00 100644
  
          if(StatusCheck::m_is_started == 0)
 -- 
-1.7.9.5
+1.7.11.7
 

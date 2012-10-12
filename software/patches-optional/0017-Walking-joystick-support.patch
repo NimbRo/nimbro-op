@@ -1,21 +1,21 @@
-From aac75a6c61d185da13cda3d8a2ed2cd726940d76 Mon Sep 17 00:00:00 2001
-From: Max Schwarz <Max@x-quadraht.de>
-Date: Sat, 6 Oct 2012 15:28:20 +0200
-Subject: [PATCH 17/25] Walking: joystick support
+From d556bf01141b31fc12d3f8e887232f125f720dad Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 13:07:29 +0200
+Subject: [PATCH 17/26] Walking: joystick support
 
 ---
- Framework/include/Walking.h              |   15 ++++++++
- Framework/src/motion/modules/Walking.cpp |   33 ++++++++++++++---
- Linux/build/JoystickLinux.cpp            |   57 ++++++++++++++++++++++++++++++
- Linux/build/Makefile                     |    3 +-
- Linux/include/Joystick.h                 |   34 ++++++++++++++++++
- Linux/project/walk_tuner/main.cpp        |   26 ++++++++++++--
- 6 files changed, 160 insertions(+), 8 deletions(-)
+ Framework/include/Walking.h              |  4 +++
+ Framework/src/motion/modules/Walking.cpp | 23 +++++++++++++
+ Linux/build/JoystickLinux.cpp            | 57 ++++++++++++++++++++++++++++++++
+ Linux/build/Makefile                     |  3 +-
+ Linux/include/Joystick.h                 | 34 +++++++++++++++++++
+ Linux/project/walk_tuner/main.cpp        | 20 +++++++++--
+ 6 files changed, 138 insertions(+), 3 deletions(-)
  create mode 100644 Linux/build/JoystickLinux.cpp
  create mode 100644 Linux/include/Joystick.h
 
 diff --git a/Framework/include/Walking.h b/Framework/include/Walking.h
-index bd7760a..3e4650f 100644
+index bd7760a..2118eba 100644
 --- a/Framework/include/Walking.h
 +++ b/Framework/include/Walking.h
 @@ -12,6 +12,8 @@
@@ -35,66 +35,26 @@ index bd7760a..3e4650f 100644
  
  		double m_PeriodTime;
  		double m_DSP_Ratio;
-@@ -103,6 +106,7 @@ namespace Robot
-         FILE* m_balanceLog;
- 
-         Walking();
-+		
- 
- 		double wsin(double time, double period, double period_shift, double mag, double mag_shift);
- 		bool computeIK(double *out, double x, double y, double z, double a, double b, double c);
-@@ -112,6 +116,11 @@ namespace Robot
-         double splineBalance(double angle, double vel, double gain);
- 
- 	public:
-+		
-+		
-+		
-+		
-+		
- 		// Walking initial pose
- 		double X_OFFSET;
- 		double Y_OFFSET;
-@@ -157,6 +166,12 @@ namespace Robot
+@@ -157,6 +160,7 @@ namespace Robot
  		int    I_GAIN;
  		int    D_GAIN;
  
-+		
-+		
 +		void useJoystick();
-+		
-+		
-+		
  		int GetCurrentPhase()		{ return m_Phase; }
  		double GetBodySwingY()		{ return m_Body_Swing_Y; }
  		double GetBodySwingZ()		{ return m_Body_Swing_Z; }
 diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
-index ea2c93e..267721f 100644
+index a75c199..ae663b1 100644
 --- a/Framework/src/motion/modules/Walking.cpp
 +++ b/Framework/src/motion/modules/Walking.cpp
-@@ -25,9 +25,10 @@ Walking* Walking::m_UniqueInstance = new Walking();
- 
- Walking::Walking()
- {
--	X_OFFSET = -10;
--	Y_OFFSET = 5;
--	Z_OFFSET = 20;
+@@ -28,6 +28,7 @@ Walking::Walking()
+ 	X_OFFSET = -10;
+ 	Y_OFFSET = 5;
+ 	Z_OFFSET = 20;
 +    m_stick = NULL;
-+    X_OFFSET = -10;
-+    Y_OFFSET = 5;
-+    Z_OFFSET = 20;
      R_OFFSET = 0;
  	P_OFFSET = 0;
      A_OFFSET = 0;
-@@ -443,7 +444,7 @@ bool Walking::IsRunning()
- 
- void Walking::Process()
- {
--	double x_swap, y_swap, z_swap, a_swap, b_swap, c_swap;
-+    double x_swap, y_swap, z_swap, a_swap, b_swap, c_swap;
-     double x_move_r, y_move_r, z_move_r, a_move_r, b_move_r, c_move_r;
-     double x_move_l, y_move_l, z_move_l, a_move_l, b_move_l, c_move_l;
-     double pelvis_offset_r, pelvis_offset_l;
 @@ -455,6 +456,19 @@ void Walking::Process()
  	double initAngle[14] = {   0.0,       0.0,        0.0,       0.0,        0.0,          0.0,         0.0,       0.0,        0.0,        0.0,       0.0,          0.0,       -25.0,       25.0};
  	int outValue[14];
@@ -115,15 +75,6 @@ index ea2c93e..267721f 100644
      // Update walk parameters
      if(m_Time == 0)
      {
-@@ -732,7 +746,7 @@ void Walking::Process()
- 
- 	for(int id = JointData::ID_R_HIP_YAW; id <= JointData::ID_L_ANKLE_ROLL; id++)
- 	{
--	    m_Joint.SetPGain(id, P_GAIN);
-+        m_Joint.SetPGain(id, P_GAIN);
-         m_Joint.SetIGain(id, I_GAIN);
-         m_Joint.SetDGain(id, D_GAIN);
-     }
 @@ -754,3 +768,12 @@ double Walking::splineBalance(double angle, double vel, double gain)
  
      return offset;
@@ -201,7 +152,7 @@ index 0000000..0c11155
 +	return true;
 +}
 diff --git a/Linux/build/Makefile b/Linux/build/Makefile
-index c87094b..7775eb7 100644
+index 2a1e0a9..4f51a55 100644
 --- a/Linux/build/Makefile
 +++ b/Linux/build/Makefile
 @@ -47,7 +47,8 @@ OBJS =  ../../Framework/src/CM730.o     	\
@@ -209,7 +160,7 @@ index c87094b..7775eb7 100644
          LinuxCM730.o    \
          LinuxMotionTimer.o    \
 -        LinuxNetwork.o
-+        LinuxNetwork.o \
++        LinuxNetwork.o   \
 +        JoystickLinux.o
  
  $(TARGET): $(OBJS)
@@ -255,7 +206,7 @@ index 0000000..7518e88
 +
 +#endif //Joystick_H
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index 3a6c5f2..eacf669 100644
+index b18fec8..0bf76ff 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -10,6 +10,9 @@
@@ -268,11 +219,9 @@ index 3a6c5f2..eacf669 100644
  #define INI_FILE_PATH       "../../../Data/config.ini"
  
  using namespace Robot;
-@@ -57,20 +60,25 @@ int main(int argc, char *argv[])
-         return 0;
+@@ -58,16 +61,17 @@ int main(int argc, char *argv[])
      }
  
-+ 
      Walking::GetInstance()->LoadINISettings(ini);
 -	MotionManager::GetInstance()->LoadINISettings(ini);
 +    MotionManager::GetInstance()->LoadINISettings(ini);
@@ -290,18 +239,11 @@ index 3a6c5f2..eacf669 100644
  
      while(1)
      {
-+		
-+		
-+		
-         int ch = _getch();
-         if(ch == 0x1b)
-         {
-@@ -107,6 +115,19 @@ int main(int argc, char *argv[])
+@@ -107,6 +111,18 @@ int main(int argc, char *argv[])
  
              int idx = 0;
  
 +
-+            
 +
 +
 +
@@ -316,11 +258,6 @@ index 3a6c5f2..eacf669 100644
              BeginCommandMode();
  
              printf("%c", ch);
-@@ -187,3 +208,4 @@ int main(int argc, char *argv[])
- 
-     return 0;
- }
-+
 -- 
-1.7.9.5
+1.7.11.7
 

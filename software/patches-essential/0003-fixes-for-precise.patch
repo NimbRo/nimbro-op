@@ -1,7 +1,7 @@
-From c4c4e05aa0b35e684b4b82c3ed88224e0c9afc02 Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Tue, 24 Jul 2012 12:41:27 +0000
-Subject: [PATCH 03/25] fixes for precise
+From 5dd93d16e8632b8f6c9da3c7b894b0d91c3bf59c Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:06:44 +0200
+Subject: [PATCH 03/26] fixes for precise
 
 Source: http://www.robotsource.org/xe/8056
 
@@ -15,14 +15,14 @@ Additional changes:
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@115 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Framework/src/motion/MotionManager.cpp |    1 +
- Linux/build/LinuxActionScript.cpp      |    4 ++--
- Linux/build/LinuxCamera.cpp            |    2 +-
- Linux/build/LinuxMotionTimer.cpp       |    1 +
- Linux/build/Makefile                   |    2 +-
- Linux/project/demo/Makefile            |    6 +++---
- Linux/project/demo/VisionMode.cpp      |    1 +
- Linux/project/walk_tuner/main.cpp      |    6 ++++--
+ Framework/src/motion/MotionManager.cpp | 1 +
+ Linux/build/LinuxActionScript.cpp      | 4 ++--
+ Linux/build/LinuxCamera.cpp            | 2 +-
+ Linux/build/LinuxMotionTimer.cpp       | 1 +
+ Linux/build/Makefile                   | 2 +-
+ Linux/project/demo/Makefile            | 6 +++---
+ Linux/project/demo/VisionMode.cpp      | 1 +
+ Linux/project/walk_tuner/main.cpp      | 6 ++++--
  8 files changed, 14 insertions(+), 9 deletions(-)
 
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
@@ -142,7 +142,7 @@ index cdd4dbe..9d61fe0 100644
  #include "Action.h"
  #include "ColorFinder.h"
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index 36fb8cc..d3c2949 100644
+index 36fb8cc..d2d4389 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -14,8 +14,7 @@
@@ -155,16 +155,16 @@ index 36fb8cc..d3c2949 100644
  
  void change_current_dir()
  {
-@@ -42,6 +41,9 @@ int main(int argc, char *argv[])
-     signal(SIGINT, &sighandler);
+@@ -43,6 +42,9 @@ int main(int argc, char *argv[])
  
      change_current_dir();
-+    
+ 
 +    LinuxCM730 linux_cm730("/dev/ttyUSB0");
 +    CM730 cm730(&linux_cm730);
- 
++
      minIni* ini = new minIni(INI_FILE_PATH);
  
+     mjpg_streamer* streamer = new mjpg_streamer(0, 0);
 -- 
-1.7.9.5
+1.7.11.7
 

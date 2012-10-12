@@ -1,15 +1,15 @@
-From 74feae3449f05c8a166b967fc48aa4b5b4399974 Mon Sep 17 00:00:00 2001
-From: schuell1 <schuell1@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Mon, 24 Sep 2012 15:44:57 +0000
-Subject: [PATCH 24/25] ActionEditor: added fuction to apply mirrored pages
+From 34fff4a69f05521b8429b98f5e04bc4811114b5f Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:35:19 +0200
+Subject: [PATCH 24/26] ActionEditor: added fuction to apply mirrored pages
 
 Signed-off-by: sebastian <sebastian>
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@174 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Linux/project/action_editor/cmd_process.cpp |   39 ++++++++++++++++++++++++++-
- Linux/project/action_editor/cmd_process.h   |    1 +
- Linux/project/action_editor/main.cpp        |    2 ++
+ Linux/project/action_editor/cmd_process.cpp | 39 ++++++++++++++++++++++++++++-
+ Linux/project/action_editor/cmd_process.h   |  1 +
+ Linux/project/action_editor/main.cpp        |  2 ++
  3 files changed, 41 insertions(+), 1 deletion(-)
 
 diff --git a/Linux/project/action_editor/cmd_process.cpp b/Linux/project/action_editor/cmd_process.cpp
@@ -81,7 +81,7 @@ index 703f19a..531f3fc 100644
  
  #endif
 diff --git a/Linux/project/action_editor/main.cpp b/Linux/project/action_editor/main.cpp
-index 093a9d3..d370ac7 100644
+index 093a9d3..5b8a0bd 100644
 --- a/Linux/project/action_editor/main.cpp
 +++ b/Linux/project/action_editor/main.cpp
 @@ -269,6 +269,8 @@ int main(int argc, char *argv[])
@@ -89,10 +89,10 @@ index 093a9d3..d370ac7 100644
                      else if(strcmp(cmd, "name") == 0)
                          NameCmd();
 +                    else if(strcmp(cmd, "mirror") == 0)
-+                    	MirrorCmd();
++                        MirrorCmd();
                      else
                          PrintCmd("Bad command! please input 'help'");
                  }
 -- 
-1.7.9.5
+1.7.11.7
 

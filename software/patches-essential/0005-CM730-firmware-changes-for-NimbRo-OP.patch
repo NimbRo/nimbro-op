@@ -1,7 +1,7 @@
-From 364aeb97c454a6f31f58d8de694e2f161cb9d8e2 Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Tue, 24 Jul 2012 13:08:54 +0000
-Subject: [PATCH 05/25] CM730 firmware changes for NimbRo-OP
+From 91c63884852e7d83477135919f3208ad65bbcb08 Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:08:28 +0200
+Subject: [PATCH 05/26] CM730 firmware changes for NimbRo-OP
 
 Changelist:
  - firmware: changed toolchain prefix
@@ -11,15 +11,15 @@ Changelist:
  - firmware: enable higher resolution on gyro
  - firmware: switch dxl torque off on startup/reset
 ---
- firmware/CM730_APP/inc/CM_DXL_COM.h   |    2 ++
- firmware/CM730_APP/src/CM_DXL_COM.c   |   26 ++++++++++++++++++++++++++
- firmware/CM730_APP/src/isr.c          |   14 +++++++-------
- firmware/CM730_APP/src/main.c         |   13 ++++++++++---
- firmware/CM730_APP/src/stm32f10x_it.c |    9 +++++----
- firmware/CM730_HW/inc/usart.h         |    2 +-
- firmware/CM730_HW/src/gyro_acc.c      |    2 +-
- firmware/CM730_HW/src/usart.c         |   24 ++++++++++++++++--------
- firmware/Makefile                     |    2 +-
+ firmware/CM730_APP/inc/CM_DXL_COM.h   |  2 ++
+ firmware/CM730_APP/src/CM_DXL_COM.c   | 26 ++++++++++++++++++++++++++
+ firmware/CM730_APP/src/isr.c          | 14 +++++++-------
+ firmware/CM730_APP/src/main.c         | 13 ++++++++++---
+ firmware/CM730_APP/src/stm32f10x_it.c |  9 +++++----
+ firmware/CM730_HW/inc/usart.h         |  2 +-
+ firmware/CM730_HW/src/gyro_acc.c      |  2 +-
+ firmware/CM730_HW/src/usart.c         | 24 ++++++++++++++++--------
+ firmware/Makefile                     |  2 +-
  9 files changed, 69 insertions(+), 25 deletions(-)
 
 diff --git a/firmware/CM730_APP/inc/CM_DXL_COM.h b/firmware/CM730_APP/inc/CM_DXL_COM.h
@@ -279,5 +279,5 @@ index 68f9d93..5d40879 100644
  
  CC = $(TCHAIN_PREFIX)gcc
 -- 
-1.7.9.5
+1.7.11.7
 

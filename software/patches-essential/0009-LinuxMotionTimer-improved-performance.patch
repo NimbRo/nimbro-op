@@ -1,17 +1,17 @@
-From 3ca3a15ecb9eeb2a522b665a96648ed3b7a079cc Mon Sep 17 00:00:00 2001
-From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
-Date: Wed, 25 Jul 2012 12:26:17 +0000
-Subject: [PATCH 09/25] LinuxMotionTimer: improved performance
+From 4585617240ffea786c08fb91c3bf28ad0334cb79 Mon Sep 17 00:00:00 2001
+From: sebastian <sebastian>
+Date: Fri, 12 Oct 2012 12:13:39 +0200
+Subject: [PATCH 09/26] LinuxMotionTimer: improved performance
 
 Changes:
  - do not try to catch up on missed cycles
  - use RT I/O priority (fixes lags)
 ---
- Linux/build/LinuxMotionTimer.cpp |   63 +++++++++++++++++++++++++++++++++++---
- 1 file changed, 59 insertions(+), 4 deletions(-)
+ Linux/build/LinuxMotionTimer.cpp | 62 +++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 58 insertions(+), 4 deletions(-)
 
 diff --git a/Linux/build/LinuxMotionTimer.cpp b/Linux/build/LinuxMotionTimer.cpp
-index 2245171..cd18b57 100644
+index 2245171..9d1dbe8 100644
 --- a/Linux/build/LinuxMotionTimer.cpp
 +++ b/Linux/build/LinuxMotionTimer.cpp
 @@ -11,6 +11,50 @@
@@ -65,7 +65,7 @@ index 2245171..cd18b57 100644
  
  using namespace Robot;
  
-@@ -24,17 +68,28 @@ LinuxMotionTimer::LinuxMotionTimer(MotionManager* manager)
+@@ -24,17 +68,27 @@ LinuxMotionTimer::LinuxMotionTimer(MotionManager* manager)
  void *LinuxMotionTimer::TimerProc(void *param)
  {
      LinuxMotionTimer *timer = (LinuxMotionTimer *)param;
@@ -73,7 +73,6 @@ index 2245171..cd18b57 100644
 +    struct timespec next_time;
 +    struct timespec current_time;
      clock_gettime(CLOCK_MONOTONIC,&next_time);
-+    
 +    // Set I/O priority to realtime
 +    ioprio_set(IOPRIO_WHO_PROCESS, getpid(), (IOPRIO_CLASS_RT << 13) | 0);
  
@@ -99,5 +98,5 @@ index 2245171..cd18b57 100644
      }
  
 -- 
-1.7.9.5
+1.7.11.7
 
