@@ -6,10 +6,6 @@ All data in this "Hardware" Folder is published under the following License
 
 Attribution-NonCommercial-ShareAlike 3.0 CC BY-NC-SA 3.0 
 
-Notice — For any reuse or distribution, you must make clear to others the licence terms of this work.
-
-Attribution-NonCommercial-ShareAlike 3.0 CC BY-NC-SA 3.0 
-
 This means:
 
 You are free:
