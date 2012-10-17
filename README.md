@@ -49,3 +49,4 @@ For more information, take a look at our webpages:
 
 * NimbRo-OP: http://nimbro.net/OP
 * Autonomous Intelligent Systems: http://ais.uni-bonn.de
+* RobotSource community (forum): http://www.robotsource.org/xe/Circle_NimbRo_OP
