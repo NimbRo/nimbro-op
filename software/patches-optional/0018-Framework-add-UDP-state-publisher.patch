@@ -1,4 +1,4 @@
-From 833bc4f602130d475b49b71085980691c511cf96 Mon Sep 17 00:00:00 2001
+From d654fd5272969ecf751a212568eed5f2490c5298 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:30:50 +0200
 Subject: [PATCH 18/25] Framework: add UDP state publisher
@@ -7,10 +7,10 @@ Subject: [PATCH 18/25] Framework: add UDP state publisher
  Framework/include/MotionManager.h      |   12 +++
  Framework/include/State.h              |   94 ++++++++++++++++++
  Framework/src/State.cpp                |  166 ++++++++++++++++++++++++++++++++
- Framework/src/motion/MotionManager.cpp |   39 +++++++-
+ Framework/src/motion/MotionManager.cpp |   44 ++++++++-
  Framework/src/vision/BallTracker.cpp   |   25 +++--
  Linux/build/Makefile                   |    1 +
- 6 files changed, 329 insertions(+), 8 deletions(-)
+ 6 files changed, 334 insertions(+), 8 deletions(-)
  create mode 100644 Framework/include/State.h
  create mode 100644 Framework/src/State.cpp
 
@@ -334,7 +334,7 @@ index 0000000..4bc3a69
 +
 +}
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index 5641641..b6f481c 100644
+index 5641641..f950a13 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -12,6 +12,9 @@
@@ -378,7 +378,26 @@ index 5641641..b6f481c 100644
  }
  
  bool MotionManager::Reinitialize()
-@@ -571,3 +587,22 @@ void MotionManager::fallProtection()
+@@ -217,6 +233,8 @@ void MotionManager::SaveINISettings(minIni* ini, const std::string &section)
+ #define MARGIN_OF_SD        2.0
+ void MotionManager::Process()
+ {
++    gettimeofday(&m_stamp_begin, 0);
++
+     if(MotionStatus::FALL_MANAGER_STATE == MS_FADING_IN || MotionStatus::FALL_MANAGER_STATE == MS_RUNNING || MotionStatus::FALL_MANAGER_STATE == Robot::MS_READY_FOR_STANDUP)
+     {
+         if(m_fadeIn && m_torque_count < DEST_TORQUE) {
+@@ -418,6 +436,9 @@ void MotionManager::Process()
+         MotionStatus::BUTTON = m_CM730->m_BulkReadData[CM730::ID_CM].ReadByte(CM730::P_BUTTON);
+ 
+     m_IsRunning = false;
++
++    gettimeofday(&m_stamp_end, 0);
++    publishUDPData();
+ }
+ 
+ void MotionManager::SetEnable(bool enable)
+@@ -571,3 +592,22 @@ void MotionManager::fallProtection()
          }
      }
  }

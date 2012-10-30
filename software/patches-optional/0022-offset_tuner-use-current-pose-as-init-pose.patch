@@ -1,4 +1,4 @@
-From 5e8c233739107317effeb2a25ea91134279bb924 Mon Sep 17 00:00:00 2001
+From 0972e2fdba8abb1913070b493e62a6e0023d8b44 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:33:49 +0200
 Subject: [PATCH 22/25] offset_tuner: use current pose as init pose

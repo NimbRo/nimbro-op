@@ -1,4 +1,4 @@
-From 6388f8dd4d1ade4f1b2818b603c8c818a02eaacf Mon Sep 17 00:00:00 2001
+From 64b0bf392f7b04f161f44dc27e5e30a9833a8d56 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:35:19 +0200
 Subject: [PATCH 24/25] ActionEditor: added fuction to apply mirrored pages

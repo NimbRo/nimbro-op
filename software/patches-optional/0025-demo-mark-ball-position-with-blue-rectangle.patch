@@ -1,4 +1,4 @@
-From 99cced4d8b78f6a39249965b085c476d4672af2a Mon Sep 17 00:00:00 2001
+From ccb77ca78e03e94fd8d8e847866db348afd9ef0a Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:35:40 +0200
 Subject: [PATCH 25/25] demo: mark ball position with blue rectangle
