@@ -1,7 +1,7 @@
-From 5dd93d16e8632b8f6c9da3c7b894b0d91c3bf59c Mon Sep 17 00:00:00 2001
+From 8d08061b9ffc7539af067a431792646a93b77c5d Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:06:44 +0200
-Subject: [PATCH 03/26] fixes for precise
+Subject: [PATCH 03/25] fixes for precise
 
 Source: http://www.robotsource.org/xe/8056
 
@@ -15,18 +15,18 @@ Additional changes:
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@115 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Framework/src/motion/MotionManager.cpp | 1 +
- Linux/build/LinuxActionScript.cpp      | 4 ++--
- Linux/build/LinuxCamera.cpp            | 2 +-
- Linux/build/LinuxMotionTimer.cpp       | 1 +
- Linux/build/Makefile                   | 2 +-
- Linux/project/demo/Makefile            | 6 +++---
- Linux/project/demo/VisionMode.cpp      | 1 +
- Linux/project/walk_tuner/main.cpp      | 6 ++++--
+ Framework/src/motion/MotionManager.cpp |    1 +
+ Linux/build/LinuxActionScript.cpp      |    4 ++--
+ Linux/build/LinuxCamera.cpp            |    2 +-
+ Linux/build/LinuxMotionTimer.cpp       |    1 +
+ Linux/build/Makefile                   |    2 +-
+ Linux/project/demo/Makefile            |    6 +++---
+ Linux/project/demo/VisionMode.cpp      |    1 +
+ Linux/project/walk_tuner/main.cpp      |    6 ++++--
  8 files changed, 14 insertions(+), 9 deletions(-)
 
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index 57e9a5b..d566c21 100644
+index 57e9a5b..d0b121c 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -10,6 +10,7 @@
@@ -38,7 +38,7 @@ index 57e9a5b..d566c21 100644
  using namespace Robot;
  
 diff --git a/Linux/build/LinuxActionScript.cpp b/Linux/build/LinuxActionScript.cpp
-index d74b1d7..b3d9845 100644
+index d74b1d7..3d16b5a 100644
 --- a/Linux/build/LinuxActionScript.cpp
 +++ b/Linux/build/LinuxActionScript.cpp
 @@ -127,7 +127,7 @@ int LinuxActionScript::PlayMP3(const char* filename)
@@ -60,7 +60,7 @@ index d74b1d7..b3d9845 100644
          break;
      default:
 diff --git a/Linux/build/LinuxCamera.cpp b/Linux/build/LinuxCamera.cpp
-index 062af92..68fe836 100644
+index 062af92..cf945ac 100644
 --- a/Linux/build/LinuxCamera.cpp
 +++ b/Linux/build/LinuxCamera.cpp
 @@ -13,6 +13,7 @@
@@ -80,7 +80,7 @@ index 062af92..68fe836 100644
  
          if (ReadFrame())
 diff --git a/Linux/build/LinuxMotionTimer.cpp b/Linux/build/LinuxMotionTimer.cpp
-index 388fe1c..2245171 100644
+index 388fe1c..067e042 100644
 --- a/Linux/build/LinuxMotionTimer.cpp
 +++ b/Linux/build/LinuxMotionTimer.cpp
 @@ -10,6 +10,7 @@
@@ -130,7 +130,7 @@ index 1af1e9e..8ced7d0 100644
  
  # useful to make a backup "make tgz"
 diff --git a/Linux/project/demo/VisionMode.cpp b/Linux/project/demo/VisionMode.cpp
-index cdd4dbe..9d61fe0 100644
+index cdd4dbe..30aea91 100644
 --- a/Linux/project/demo/VisionMode.cpp
 +++ b/Linux/project/demo/VisionMode.cpp
 @@ -5,6 +5,7 @@
@@ -142,7 +142,7 @@ index cdd4dbe..9d61fe0 100644
  #include "Action.h"
  #include "ColorFinder.h"
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index 36fb8cc..d2d4389 100644
+index 36fb8cc..a25c257 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -14,8 +14,7 @@
@@ -166,5 +166,5 @@ index 36fb8cc..d2d4389 100644
  
      mjpg_streamer* streamer = new mjpg_streamer(0, 0);
 -- 
-1.7.11.7
+1.7.10.4
 

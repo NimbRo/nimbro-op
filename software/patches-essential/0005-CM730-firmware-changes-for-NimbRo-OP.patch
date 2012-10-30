@@ -1,7 +1,7 @@
-From 91c63884852e7d83477135919f3208ad65bbcb08 Mon Sep 17 00:00:00 2001
+From 53a5016aa2b4afd0a846c4ead873da31042b70cb Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:08:28 +0200
-Subject: [PATCH 05/26] CM730 firmware changes for NimbRo-OP
+Subject: [PATCH 05/25] CM730 firmware changes for NimbRo-OP
 
 Changelist:
  - firmware: changed toolchain prefix
@@ -11,19 +11,19 @@ Changelist:
  - firmware: enable higher resolution on gyro
  - firmware: switch dxl torque off on startup/reset
 ---
- firmware/CM730_APP/inc/CM_DXL_COM.h   |  2 ++
- firmware/CM730_APP/src/CM_DXL_COM.c   | 26 ++++++++++++++++++++++++++
- firmware/CM730_APP/src/isr.c          | 14 +++++++-------
- firmware/CM730_APP/src/main.c         | 13 ++++++++++---
- firmware/CM730_APP/src/stm32f10x_it.c |  9 +++++----
- firmware/CM730_HW/inc/usart.h         |  2 +-
- firmware/CM730_HW/src/gyro_acc.c      |  2 +-
- firmware/CM730_HW/src/usart.c         | 24 ++++++++++++++++--------
- firmware/Makefile                     |  2 +-
+ firmware/CM730_APP/inc/CM_DXL_COM.h   |    2 ++
+ firmware/CM730_APP/src/CM_DXL_COM.c   |   26 ++++++++++++++++++++++++++
+ firmware/CM730_APP/src/isr.c          |   14 +++++++-------
+ firmware/CM730_APP/src/main.c         |   13 ++++++++++---
+ firmware/CM730_APP/src/stm32f10x_it.c |    9 +++++----
+ firmware/CM730_HW/inc/usart.h         |    2 +-
+ firmware/CM730_HW/src/gyro_acc.c      |    2 +-
+ firmware/CM730_HW/src/usart.c         |   24 ++++++++++++++++--------
+ firmware/Makefile                     |    2 +-
  9 files changed, 69 insertions(+), 25 deletions(-)
 
 diff --git a/firmware/CM730_APP/inc/CM_DXL_COM.h b/firmware/CM730_APP/inc/CM_DXL_COM.h
-index 519e7a8..82edb47 100644
+index 519e7a8..7b0d91a 100644
 --- a/firmware/CM730_APP/inc/CM_DXL_COM.h
 +++ b/firmware/CM730_APP/inc/CM_DXL_COM.h
 @@ -283,6 +283,8 @@ extern volatile byte gbLEDPwm;
@@ -36,7 +36,7 @@ index 519e7a8..82edb47 100644
  #endif /* _DYNAMIXEL_CM_DXL_COM_HEADER */
  
 diff --git a/firmware/CM730_APP/src/CM_DXL_COM.c b/firmware/CM730_APP/src/CM_DXL_COM.c
-index 2c34671..841288e 100644
+index 2c34671..0a9ae4f 100644
 --- a/firmware/CM730_APP/src/CM_DXL_COM.c
 +++ b/firmware/CM730_APP/src/CM_DXL_COM.c
 @@ -344,6 +344,28 @@ void ProcessAfterWriting(void);
@@ -80,7 +80,7 @@ index 2c34671..841288e 100644
  		break;
  		case	P_LED_PANNEL:
 diff --git a/firmware/CM730_APP/src/isr.c b/firmware/CM730_APP/src/isr.c
-index 39c4bcd..f66beef 100644
+index 39c4bcd..19b5595 100644
 --- a/firmware/CM730_APP/src/isr.c
 +++ b/firmware/CM730_APP/src/isr.c
 @@ -25,12 +25,12 @@
@@ -112,7 +112,7 @@ index 39c4bcd..f66beef 100644
  	}
  	else {
 diff --git a/firmware/CM730_APP/src/main.c b/firmware/CM730_APP/src/main.c
-index f560a99..7933992 100644
+index f560a99..6d506fd 100644
 --- a/firmware/CM730_APP/src/main.c
 +++ b/firmware/CM730_APP/src/main.c
 @@ -48,8 +48,7 @@ int main(void)
@@ -151,7 +151,7 @@ index f560a99..7933992 100644
  	dxl_set_power(1);
  	gbDxlPwr = 1;
 diff --git a/firmware/CM730_APP/src/stm32f10x_it.c b/firmware/CM730_APP/src/stm32f10x_it.c
-index 8ac8324..af3faa0 100644
+index 8ac8324..0364377 100644
 --- a/firmware/CM730_APP/src/stm32f10x_it.c
 +++ b/firmware/CM730_APP/src/stm32f10x_it.c
 @@ -38,7 +38,6 @@ extern vu16 CCR3_Val;       // from system_init.c
@@ -190,7 +190,7 @@ index 8ac8324..af3faa0 100644
  
  		if( !( gwCounter1 & 7 ) ) // 840us
 diff --git a/firmware/CM730_HW/inc/usart.h b/firmware/CM730_HW/inc/usart.h
-index 3f5c008..c197cb4 100644
+index 3f5c008..805d2cb 100644
 --- a/firmware/CM730_HW/inc/usart.h
 +++ b/firmware/CM730_HW/inc/usart.h
 @@ -32,7 +32,7 @@ void __ISR_USART_DXL(void);
@@ -203,7 +203,7 @@ index 3f5c008..c197cb4 100644
  #endif /* __USART_H */
  
 diff --git a/firmware/CM730_HW/src/gyro_acc.c b/firmware/CM730_HW/src/gyro_acc.c
-index 8e6bbd3..97f572c 100644
+index 8e6bbd3..f125989 100644
 --- a/firmware/CM730_HW/src/gyro_acc.c
 +++ b/firmware/CM730_HW/src/gyro_acc.c
 @@ -263,7 +263,7 @@ void Gyro_Configuration(void)
@@ -216,7 +216,7 @@ index 8e6bbd3..97f572c 100644
  	while (SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_RXNE) == RESET);
  	Push_SPI_Data( SPI_I2S_ReceiveData(SPI2) );
 diff --git a/firmware/CM730_HW/src/usart.c b/firmware/CM730_HW/src/usart.c
-index 8f8b057..3c5bfc8 100644
+index 8f8b057..42d478f 100644
 --- a/firmware/CM730_HW/src/usart.c
 +++ b/firmware/CM730_HW/src/usart.c
 @@ -20,6 +20,8 @@
@@ -266,7 +266,7 @@ index 8f8b057..3c5bfc8 100644
  
  /******************* (C) COPYRIGHT 2010 ROBOTIS *****END OF FILE****/
 diff --git a/firmware/Makefile b/firmware/Makefile
-index 68f9d93..5d40879 100644
+index 68f9d93..f05f2e7 100644
 --- a/firmware/Makefile
 +++ b/firmware/Makefile
 @@ -6,7 +6,7 @@ INCLUDE_DIRS = -I. -Istm32f10x_lib/inc -ICM730_HW/inc -ICM730_APP/inc
@@ -279,5 +279,5 @@ index 68f9d93..5d40879 100644
  
  CC = $(TCHAIN_PREFIX)gcc
 -- 
-1.7.11.7
+1.7.10.4
 

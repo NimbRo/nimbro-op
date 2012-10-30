@@ -1,7 +1,7 @@
-From 239e5cde82b9254b7aa412fb05da235934989f8d Mon Sep 17 00:00:00 2001
+From 146f1a5bdc6e7a378ca190a1651abec1c05be088 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:21:15 +0200
-Subject: [PATCH 11/26] vision: adapted for NimbRo-OP camera system
+Subject: [PATCH 11/25] vision: adapted for NimbRo-OP camera system
 
 Changes:
  - do not flip camera images
@@ -11,15 +11,15 @@ Changes:
  - Head: pgain tuning
  - Kinematics: changed eye tilt offset angle
 ---
- Data/config.ini                       | 15 ++++++++++
- Framework/include/ColorFinder.h       |  3 +-
- Framework/include/Kinematics.h        |  2 +-
- Framework/src/motion/modules/Head.cpp | 52 +++++++++++++++++++++--------------
- Framework/src/vision/BallFollower.cpp |  3 +-
- Framework/src/vision/BallTracker.cpp  |  6 ++--
- Framework/src/vision/ColorFinder.cpp  | 32 ++++++++++++++++++---
- Linux/build/LinuxCamera.cpp           |  2 --
- Linux/project/demo/main.cpp           |  4 ++-
+ Data/config.ini                       |   15 ++++++++++
+ Framework/include/ColorFinder.h       |    3 +-
+ Framework/include/Kinematics.h        |    2 +-
+ Framework/src/motion/modules/Head.cpp |   52 ++++++++++++++++++++-------------
+ Framework/src/vision/BallFollower.cpp |    3 +-
+ Framework/src/vision/BallTracker.cpp  |    6 ++--
+ Framework/src/vision/ColorFinder.cpp  |   32 +++++++++++++++++---
+ Linux/build/LinuxCamera.cpp           |    2 --
+ Linux/project/demo/main.cpp           |    4 ++-
  9 files changed, 86 insertions(+), 33 deletions(-)
 
 diff --git a/Data/config.ini b/Data/config.ini
@@ -46,7 +46,7 @@ index 9ec28e0..0e01195 100644
 +min_percent=0.030000
 +max_percent=30.000000
 diff --git a/Framework/include/ColorFinder.h b/Framework/include/ColorFinder.h
-index b426c64..e610939 100644
+index b426c64..2548d4b 100644
 --- a/Framework/include/ColorFinder.h
 +++ b/Framework/include/ColorFinder.h
 @@ -25,6 +25,7 @@ namespace Robot
@@ -67,7 +67,7 @@ index b426c64..e610939 100644
  }
  
 diff --git a/Framework/include/Kinematics.h b/Framework/include/Kinematics.h
-index 86e8b71..35c453e 100644
+index 86e8b71..0e0784f 100644
 --- a/Framework/include/Kinematics.h
 +++ b/Framework/include/Kinematics.h
 @@ -23,7 +23,7 @@ namespace Robot
@@ -80,7 +80,7 @@ index 86e8b71..35c453e 100644
  		static const double THIGH_LENGTH = 93.0; //mm
  		static const double CALF_LENGTH = 93.0; //mm
 diff --git a/Framework/src/motion/modules/Head.cpp b/Framework/src/motion/modules/Head.cpp
-index 292eea3..6119584 100644
+index 292eea3..84f3160 100644
 --- a/Framework/src/motion/modules/Head.cpp
 +++ b/Framework/src/motion/modules/Head.cpp
 @@ -18,7 +18,7 @@ Head* Head::m_UniqueInstance = new Head();
@@ -158,7 +158,7 @@ index 292eea3..6119584 100644
 +		m_TiltAngle = MotionStatus::m_CurrentJoints.GetAngle(JointData::ID_HEAD_TILT);
  }
 diff --git a/Framework/src/vision/BallFollower.cpp b/Framework/src/vision/BallFollower.cpp
-index 3085eeb..03a5d8b 100644
+index 3085eeb..428ed6b 100644
 --- a/Framework/src/vision/BallFollower.cpp
 +++ b/Framework/src/vision/BallFollower.cpp
 @@ -6,6 +6,7 @@
@@ -179,7 +179,7 @@ index 3085eeb..03a5d8b 100644
  		KickBall = 0;
  
 diff --git a/Framework/src/vision/BallTracker.cpp b/Framework/src/vision/BallTracker.cpp
-index 7ff9cad..c2bd8b3 100644
+index 7ff9cad..7099856 100644
 --- a/Framework/src/vision/BallTracker.cpp
 +++ b/Framework/src/vision/BallTracker.cpp
 @@ -26,10 +26,10 @@ BallTracker::~BallTracker()
@@ -197,7 +197,7 @@ index 7ff9cad..c2bd8b3 100644
  		{
  			Head::GetInstance()->MoveTracking();
 diff --git a/Framework/src/vision/ColorFinder.cpp b/Framework/src/vision/ColorFinder.cpp
-index d563b86..162f3fd 100644
+index d563b86..deda4eb 100644
 --- a/Framework/src/vision/ColorFinder.cpp
 +++ b/Framework/src/vision/ColorFinder.cpp
 @@ -6,6 +6,7 @@
@@ -270,7 +270,7 @@ index d563b86..162f3fd 100644
 +    return undistort(m_center_point);
  }
 diff --git a/Linux/build/LinuxCamera.cpp b/Linux/build/LinuxCamera.cpp
-index 68fe836..08aca14 100644
+index cf945ac..cf126be 100644
 --- a/Linux/build/LinuxCamera.cpp
 +++ b/Linux/build/LinuxCamera.cpp
 @@ -386,8 +386,6 @@ int LinuxCamera::ReadFrame()
@@ -283,7 +283,7 @@ index 68fe836..08aca14 100644
      ImgProcess::RGBtoHSV(fbuffer);
  
 diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
-index fd30a6d..5864bfa 100644
+index d68a790..6741634 100644
 --- a/Linux/project/demo/main.cpp
 +++ b/Linux/project/demo/main.cpp
 @@ -11,6 +11,7 @@
@@ -305,5 +305,5 @@ index fd30a6d..5864bfa 100644
              for(int i = 0; i < rgb_output->m_NumberOfPixels; i++)
              {
 -- 
-1.7.11.7
+1.7.10.4
 

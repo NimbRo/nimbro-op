@@ -1,16 +1,16 @@
-From bbde4b3e7573606da7a338b6f9d0011e3770f18f Mon Sep 17 00:00:00 2001
+From 66ad4908cd0c66fc42a7800d3b9b2c21bdba2e16 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:32:28 +0200
-Subject: [PATCH 20/26] cm730: allow beeper access
+Subject: [PATCH 20/25] cm730: allow beeper access
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@28 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Framework/include/CM730.h                 | 2 ++
- Linux/project/dxl_monitor/cmd_process.cpp | 4 +++-
+ Framework/include/CM730.h                 |    2 ++
+ Linux/project/dxl_monitor/cmd_process.cpp |    4 +++-
  2 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/Framework/include/CM730.h b/Framework/include/CM730.h
-index f608c7e..fd6abf5 100644
+index f608c7e..72e2c03 100644
 --- a/Framework/include/CM730.h
 +++ b/Framework/include/CM730.h
 @@ -145,6 +145,8 @@ namespace Robot
@@ -23,7 +23,7 @@ index f608c7e..fd6abf5 100644
  		};
  
 diff --git a/Linux/project/dxl_monitor/cmd_process.cpp b/Linux/project/dxl_monitor/cmd_process.cpp
-index 7de7ff0..3131617 100644
+index fa2be32..1e7dd8b 100644
 --- a/Linux/project/dxl_monitor/cmd_process.cpp
 +++ b/Linux/project/dxl_monitor/cmd_process.cpp
 @@ -426,7 +426,9 @@ void Write(Robot::CM730 *cm730, int id, int addr, int value)
@@ -38,5 +38,5 @@ index 7de7ff0..3131617 100644
  			res = cm730->WriteByte(addr, value, &error);
  		}
 -- 
-1.7.11.7
+1.7.10.4
 

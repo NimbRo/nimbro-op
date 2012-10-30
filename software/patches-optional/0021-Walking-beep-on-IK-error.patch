@@ -1,17 +1,17 @@
-From 5abe70a90a5eaba66358333e4e19e9b2cc092ade Mon Sep 17 00:00:00 2001
+From 654bd309512c26e291e622b2850493bb7b9f0a39 Mon Sep 17 00:00:00 2001
 From: schwarzm <schwarzm@1b4782f9-c6b1-4fad-9a30-e804c95d81e5>
 Date: Wed, 25 Jul 2012 15:33:54 +0000
-Subject: [PATCH 21/26] Walking: beep on IK error
+Subject: [PATCH 21/25] Walking: beep on IK error
 
 ---
- Framework/include/CM730.h                | 1 +
- Framework/include/MotionManager.h        | 3 +++
- Framework/src/CM730.cpp                  | 7 +++++++
- Framework/src/motion/modules/Walking.cpp | 5 +++++
+ Framework/include/CM730.h                |    1 +
+ Framework/include/MotionManager.h        |    3 +++
+ Framework/src/CM730.cpp                  |    7 +++++++
+ Framework/src/motion/modules/Walking.cpp |    5 +++++
  4 files changed, 16 insertions(+)
 
 diff --git a/Framework/include/CM730.h b/Framework/include/CM730.h
-index fd6abf5..4679a5a 100644
+index 72e2c03..e9ea093 100644
 --- a/Framework/include/CM730.h
 +++ b/Framework/include/CM730.h
 @@ -181,6 +181,7 @@ namespace Robot
@@ -23,7 +23,7 @@ index fd6abf5..4679a5a 100644
  		// For actuators
  		int Ping(int id, int *error);
 diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
-index a377555..1e3c275 100644
+index 4a53aa7..3a38d52 100644
 --- a/Framework/include/MotionManager.h
 +++ b/Framework/include/MotionManager.h
 @@ -112,6 +112,9 @@ namespace Robot
@@ -37,7 +37,7 @@ index a377555..1e3c275 100644
  }
  
 diff --git a/Framework/src/CM730.cpp b/Framework/src/CM730.cpp
-index 7123d08..a97f093 100644
+index 1fa651f..9cbe851 100644
 --- a/Framework/src/CM730.cpp
 +++ b/Framework/src/CM730.cpp
 @@ -697,3 +697,10 @@ int CM730::MakeColor(int red, int green, int blue)
@@ -52,7 +52,7 @@ index 7123d08..a97f093 100644
 +	return 0;
 +}
 diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
-index ae663b1..37bb5ca 100644
+index cdbe8c3..54343b9 100644
 --- a/Framework/src/motion/modules/Walking.cpp
 +++ b/Framework/src/motion/modules/Walking.cpp
 @@ -14,11 +14,15 @@
@@ -80,5 +80,5 @@ index ae663b1..37bb5ca 100644
  	}
  
 -- 
-1.7.11.7
+1.7.10.4
 

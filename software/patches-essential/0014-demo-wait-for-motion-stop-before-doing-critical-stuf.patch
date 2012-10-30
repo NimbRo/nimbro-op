@@ -1,14 +1,14 @@
-From 906e1f01ef2a29cd3b9c3542431bfc3dbaf29047 Mon Sep 17 00:00:00 2001
+From 7296269f20df9c52e495bcc7da0a12eef7f76fe5 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:24:49 +0200
-Subject: [PATCH 14/26] demo: wait for motion stop before doing critical stuff
+Subject: [PATCH 14/25] demo: wait for motion stop before doing critical stuff
 
 ---
- Linux/project/demo/StatusCheck.cpp | 3 +++
+ Linux/project/demo/StatusCheck.cpp |    3 +++
  1 file changed, 3 insertions(+)
 
 diff --git a/Linux/project/demo/StatusCheck.cpp b/Linux/project/demo/StatusCheck.cpp
-index f38dfc3..0990a20 100644
+index f38dfc3..5312365 100644
 --- a/Linux/project/demo/StatusCheck.cpp
 +++ b/Linux/project/demo/StatusCheck.cpp
 @@ -58,6 +58,7 @@ void StatusCheck::Check(CM730 &cm730)
@@ -29,5 +29,5 @@ index f38dfc3..0990a20 100644
                  while(1)
                  {
 -- 
-1.7.11.7
+1.7.10.4
 

@@ -1,7 +1,7 @@
-From 04a6dcecc2ea09123da2abce058ba650cb5e2a2a Mon Sep 17 00:00:00 2001
+From 1963dc43fd81a5c55cc97eb88b588daa5b4528da Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:09:47 +0200
-Subject: [PATCH 06/26] Improved joint configuration
+Subject: [PATCH 06/25] Improved joint configuration
 
 Changes:
  - additional inversion flag
@@ -9,20 +9,20 @@ Changes:
  - correct propagation of offsets
  - use low P gain for arms & head
 ---
- Data/config.ini                             | 43 +++++++++++++
- Framework/include/JointData.h               |  6 +-
- Framework/include/MotionManager.h           |  5 ++
- Framework/src/motion/JointData.cpp          | 25 +++++++-
- Framework/src/motion/MotionManager.cpp      | 33 +++++++++-
- Framework/src/motion/modules/Action.cpp     |  9 ++-
- Framework/src/motion/modules/Walking.cpp    |  9 +--
- Linux/project/action_editor/cmd_process.cpp | 17 +++++-
- Linux/project/action_editor/main.cpp        |  4 ++
- Linux/project/demo/main.cpp                 |  7 +--
- Linux/project/offset_tuner/cmd_process.cpp  | 95 ++++++++++++++++++-----------
- Linux/project/offset_tuner/cmd_process.h    |  1 +
- Linux/project/walk_tuner/cmd_process.cpp    |  2 +-
- Linux/project/walk_tuner/main.cpp           |  3 +
+ Data/config.ini                             |   43 ++++++++++++
+ Framework/include/JointData.h               |    6 +-
+ Framework/include/MotionManager.h           |    5 ++
+ Framework/src/motion/JointData.cpp          |   25 ++++++-
+ Framework/src/motion/MotionManager.cpp      |   33 +++++++++-
+ Framework/src/motion/modules/Action.cpp     |    9 ++-
+ Framework/src/motion/modules/Walking.cpp    |    9 +--
+ Linux/project/action_editor/cmd_process.cpp |   17 ++++-
+ Linux/project/action_editor/main.cpp        |    4 ++
+ Linux/project/demo/main.cpp                 |    7 +-
+ Linux/project/offset_tuner/cmd_process.cpp  |   95 +++++++++++++++++----------
+ Linux/project/offset_tuner/cmd_process.h    |    1 +
+ Linux/project/walk_tuner/cmd_process.cpp    |    2 +-
+ Linux/project/walk_tuner/main.cpp           |    3 +
  14 files changed, 201 insertions(+), 58 deletions(-)
  create mode 100644 Data/config.ini
 
@@ -76,7 +76,7 @@ index 0000000..9ec28e0
 +ID_19=0
 +ID_20=0
 diff --git a/Framework/include/JointData.h b/Framework/include/JointData.h
-index 60254ed..f5010d8 100644
+index 60254ed..9a0ef05 100644
 --- a/Framework/include/JointData.h
 +++ b/Framework/include/JointData.h
 @@ -49,12 +49,12 @@ namespace Robot
@@ -104,7 +104,7 @@ index 60254ed..f5010d8 100644
          int  GetPGain(int id)            { return m_PGain[id]; }
          void SetIGain(int id, int igain) { m_IGain[id] = igain; }
 diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
-index 6ef51d8..0ab145e 100644
+index 6ef51d8..3e4f810 100644
 --- a/Framework/include/MotionManager.h
 +++ b/Framework/include/MotionManager.h
 @@ -17,6 +17,7 @@
@@ -134,7 +134,7 @@ index 6ef51d8..0ab145e 100644
  		void StopLogging();
  
 diff --git a/Framework/src/motion/JointData.cpp b/Framework/src/motion/JointData.cpp
-index 6a7b9ad..2953424 100644
+index 6a7b9ad..e4ddaeb 100644
 --- a/Framework/src/motion/JointData.cpp
 +++ b/Framework/src/motion/JointData.cpp
 @@ -20,9 +20,9 @@ JointData::JointData()
@@ -176,7 +176,7 @@ index 6a7b9ad..2953424 100644
 +    }
 +}
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index d566c21..ff1dbc9 100644
+index d0b121c..b6f5b45 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -26,7 +26,10 @@ MotionManager::MotionManager() :
@@ -260,7 +260,7 @@ index d566c21..ff1dbc9 100644
 +	return position;
 +}
 diff --git a/Framework/src/motion/modules/Action.cpp b/Framework/src/motion/modules/Action.cpp
-index 6c3d7f8..93f54cf 100644
+index 6c3d7f8..45ff055 100644
 --- a/Framework/src/motion/modules/Action.cpp
 +++ b/Framework/src/motion/modules/Action.cpp
 @@ -396,8 +396,13 @@ void Action::Process()
@@ -280,7 +280,7 @@ index 6c3d7f8..93f54cf 100644
              }
          }
 diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
-index 353d2c7..6431b55 100644
+index 353d2c7..afbddf4 100644
 --- a/Framework/src/motion/modules/Walking.cpp
 +++ b/Framework/src/motion/modules/Walking.cpp
 @@ -67,14 +67,7 @@ Walking::Walking()
@@ -300,7 +300,7 @@ index 353d2c7..6431b55 100644
  
  Walking::~Walking()
 diff --git a/Linux/project/action_editor/cmd_process.cpp b/Linux/project/action_editor/cmd_process.cpp
-index d9a83ef..b5f92ad 100644
+index d9a83ef..e3baf87 100644
 --- a/Linux/project/action_editor/cmd_process.cpp
 +++ b/Linux/project/action_editor/cmd_process.cpp
 @@ -7,6 +7,8 @@
@@ -370,7 +370,7 @@ index d9a83ef..b5f92ad 100644
  			wDistance = wStartPosition - wGoalPosition;
  		else
 diff --git a/Linux/project/action_editor/main.cpp b/Linux/project/action_editor/main.cpp
-index 7595ee9..093a9d3 100644
+index 7595ee9..2633faf 100644
 --- a/Linux/project/action_editor/main.cpp
 +++ b/Linux/project/action_editor/main.cpp
 @@ -14,6 +14,8 @@
@@ -392,7 +392,7 @@ index 7595ee9..093a9d3 100644
      LinuxMotionTimer *motion_timer = new LinuxMotionTimer(MotionManager::GetInstance());
      motion_timer->Stop();
 diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
-index 80a2804..fd30a6d 100644
+index 80a2804..d68a790 100644
 --- a/Linux/project/demo/main.cpp
 +++ b/Linux/project/demo/main.cpp
 @@ -88,6 +88,9 @@ int main(void)
@@ -424,7 +424,7 @@ index 80a2804..fd30a6d 100644
      int firm_ver = 0;
      if(cm730.ReadByte(JointData::ID_HEAD_PAN, MX28::P_VERSION, &firm_ver, 0)  != CM730::SUCCESS)
 diff --git a/Linux/project/offset_tuner/cmd_process.cpp b/Linux/project/offset_tuner/cmd_process.cpp
-index bb20f9d..eb5c659 100644
+index bb20f9d..61f7d40 100644
 --- a/Linux/project/offset_tuner/cmd_process.cpp
 +++ b/Linux/project/offset_tuner/cmd_process.cpp
 @@ -150,7 +150,7 @@ void GoToCursor(int col, int row)
@@ -623,7 +623,7 @@ index bb20f9d..eb5c659 100644
      {
          if(value >= MX28::MIN_VALUE && value <= MX28::MAX_VALUE)
 diff --git a/Linux/project/offset_tuner/cmd_process.h b/Linux/project/offset_tuner/cmd_process.h
-index 28f8dd5..2ddad3b 100644
+index 28f8dd5..d424110 100644
 --- a/Linux/project/offset_tuner/cmd_process.h
 +++ b/Linux/project/offset_tuner/cmd_process.h
 @@ -19,6 +19,7 @@
@@ -635,7 +635,7 @@ index 28f8dd5..2ddad3b 100644
  
  // Position of Row
 diff --git a/Linux/project/walk_tuner/cmd_process.cpp b/Linux/project/walk_tuner/cmd_process.cpp
-index cdb3b54..f32609b 100644
+index cdb3b54..a8f88c7 100644
 --- a/Linux/project/walk_tuner/cmd_process.cpp
 +++ b/Linux/project/walk_tuner/cmd_process.cpp
 @@ -140,7 +140,7 @@ void DrawIntro(CM730 *cm730)
@@ -648,7 +648,7 @@ index cdb3b54..f32609b 100644
  			wDistance = wStartPosition - wGoalPosition;
  		else
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index d2d4389..807acca 100644
+index a25c257..d53faf8 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -56,7 +56,9 @@ int main(int argc, char *argv[])
@@ -669,5 +669,5 @@ index d2d4389..807acca 100644
      return 0;
  }
 -- 
-1.7.11.7
+1.7.10.4
 

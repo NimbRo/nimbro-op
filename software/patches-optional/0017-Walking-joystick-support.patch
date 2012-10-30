@@ -1,21 +1,21 @@
-From d556bf01141b31fc12d3f8e887232f125f720dad Mon Sep 17 00:00:00 2001
+From 1bbfb1ac20e97e36408cc23ea41270e3eaa6da1c Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 13:07:29 +0200
-Subject: [PATCH 17/26] Walking: joystick support
+Subject: [PATCH 17/25] Walking: joystick support
 
 ---
- Framework/include/Walking.h              |  4 +++
- Framework/src/motion/modules/Walking.cpp | 23 +++++++++++++
- Linux/build/JoystickLinux.cpp            | 57 ++++++++++++++++++++++++++++++++
- Linux/build/Makefile                     |  3 +-
- Linux/include/Joystick.h                 | 34 +++++++++++++++++++
- Linux/project/walk_tuner/main.cpp        | 20 +++++++++--
+ Framework/include/Walking.h              |    4 +++
+ Framework/src/motion/modules/Walking.cpp |   23 ++++++++++++
+ Linux/build/JoystickLinux.cpp            |   57 ++++++++++++++++++++++++++++++
+ Linux/build/Makefile                     |    3 +-
+ Linux/include/Joystick.h                 |   34 ++++++++++++++++++
+ Linux/project/walk_tuner/main.cpp        |   20 +++++++++--
  6 files changed, 138 insertions(+), 3 deletions(-)
  create mode 100644 Linux/build/JoystickLinux.cpp
  create mode 100644 Linux/include/Joystick.h
 
 diff --git a/Framework/include/Walking.h b/Framework/include/Walking.h
-index bd7760a..2118eba 100644
+index c09ae1d..3549cf1 100644
 --- a/Framework/include/Walking.h
 +++ b/Framework/include/Walking.h
 @@ -12,6 +12,8 @@
@@ -44,7 +44,7 @@ index bd7760a..2118eba 100644
  		double GetBodySwingY()		{ return m_Body_Swing_Y; }
  		double GetBodySwingZ()		{ return m_Body_Swing_Z; }
 diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
-index a75c199..ae663b1 100644
+index 06c805e..cdbe8c3 100644
 --- a/Framework/src/motion/modules/Walking.cpp
 +++ b/Framework/src/motion/modules/Walking.cpp
 @@ -28,6 +28,7 @@ Walking::Walking()
@@ -90,7 +90,7 @@ index a75c199..ae663b1 100644
 +}
 diff --git a/Linux/build/JoystickLinux.cpp b/Linux/build/JoystickLinux.cpp
 new file mode 100644
-index 0000000..0c11155
+index 0000000..b029101
 --- /dev/null
 +++ b/Linux/build/JoystickLinux.cpp
 @@ -0,0 +1,57 @@
@@ -152,7 +152,7 @@ index 0000000..0c11155
 +	return true;
 +}
 diff --git a/Linux/build/Makefile b/Linux/build/Makefile
-index 2a1e0a9..4f51a55 100644
+index 0523b8b..1082ad4 100644
 --- a/Linux/build/Makefile
 +++ b/Linux/build/Makefile
 @@ -47,7 +47,8 @@ OBJS =  ../../Framework/src/CM730.o     	\
@@ -167,7 +167,7 @@ index 2a1e0a9..4f51a55 100644
  	$(AR) $(ARFLAGS) ../lib/$(TARGET) $(OBJS)
 diff --git a/Linux/include/Joystick.h b/Linux/include/Joystick.h
 new file mode 100644
-index 0000000..7518e88
+index 0000000..669c275
 --- /dev/null
 +++ b/Linux/include/Joystick.h
 @@ -0,0 +1,34 @@
@@ -206,7 +206,7 @@ index 0000000..7518e88
 +
 +#endif //Joystick_H
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index b18fec8..0bf76ff 100644
+index a608171..434c65a 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -10,6 +10,9 @@
@@ -259,5 +259,5 @@ index b18fec8..0bf76ff 100644
  
              printf("%c", ch);
 -- 
-1.7.11.7
+1.7.10.4
 

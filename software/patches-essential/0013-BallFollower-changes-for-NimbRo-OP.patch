@@ -1,7 +1,7 @@
-From a793920362b33b2dfc32cf967ebc6f4eba25d092 Mon Sep 17 00:00:00 2001
+From d1380a66e2c038b13d8592fcc2aae7434b489307 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:24:21 +0200
-Subject: [PATCH 13/26] BallFollower: changes for NimbRo-OP
+Subject: [PATCH 13/25] BallFollower: changes for NimbRo-OP
 
 Changes:
  - do not stop walking if no ball is seen
@@ -9,13 +9,13 @@ Changes:
  - do not kick again immediately
  - general parameter tunings
 ---
- Framework/include/BallFollower.h      |  5 +++
- Framework/src/vision/BallFollower.cpp | 77 +++++++++++++++++++++++++----------
- Linux/project/demo/main.cpp           |  6 +++
+ Framework/include/BallFollower.h      |    5 +++
+ Framework/src/vision/BallFollower.cpp |   77 ++++++++++++++++++++++++---------
+ Linux/project/demo/main.cpp           |    6 +++
  3 files changed, 67 insertions(+), 21 deletions(-)
 
 diff --git a/Framework/include/BallFollower.h b/Framework/include/BallFollower.h
-index 6f2d353..622a67d 100644
+index 6f2d353..6287793 100644
 --- a/Framework/include/BallFollower.h
 +++ b/Framework/include/BallFollower.h
 @@ -22,6 +22,8 @@ namespace Robot
@@ -45,7 +45,7 @@ index 6f2d353..622a67d 100644
  }
  
 diff --git a/Framework/src/vision/BallFollower.cpp b/Framework/src/vision/BallFollower.cpp
-index 03a5d8b..5f4a02b 100644
+index 428ed6b..b1022d1 100644
 --- a/Framework/src/vision/BallFollower.cpp
 +++ b/Framework/src/vision/BallFollower.cpp
 @@ -7,6 +7,7 @@
@@ -221,7 +221,7 @@ index 03a5d8b..5f4a02b 100644
 +    KickBall = 0;
  }
 diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
-index 5864bfa..2f34a15 100644
+index 6741634..f453bc4 100644
 --- a/Linux/project/demo/main.cpp
 +++ b/Linux/project/demo/main.cpp
 @@ -277,6 +277,12 @@ int main(void)
@@ -238,5 +238,5 @@ index 5864bfa..2f34a15 100644
              }
              break;
 -- 
-1.7.11.7
+1.7.10.4
 

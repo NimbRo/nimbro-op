@@ -1,24 +1,24 @@
-From c4267a068dcc74b2cb7c70482ec5a02b17607ffb Mon Sep 17 00:00:00 2001
+From 4ff72e108e266ded8370298546d285bff9bc6c62 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:23:26 +0200
-Subject: [PATCH 12/26] Walking: tuned for NimbRo-OP
+Subject: [PATCH 12/25] Walking: tuned for NimbRo-OP
 
 Changes:
  - general parameter tuning
  - smooth start
  - spline-based pitch balance algorithm
 ---
- Data/config.ini                                |  42 +++++-
- Framework/include/MotionState.h                |  19 +++
- Framework/include/QuadraticStateTransform.h    |  27 ++++
- Framework/include/Walking.h                    |  21 +++
- Framework/src/math/MotionState.cpp             |  25 ++++
- Framework/src/math/QuadraticStateTransform.cpp |  97 +++++++++++++
- Framework/src/motion/modules/Walking.cpp       | 183 ++++++++++++++++++++++---
- Linux/build/Makefile                           |   2 +
- Linux/project/walk_tuner/cmd_process.cpp       | 152 +++++++++++++++++++-
- Linux/project/walk_tuner/cmd_process.h         |   7 +
- 10 files changed, 543 insertions(+), 32 deletions(-)
+ Data/config.ini                                |   42 +++++-
+ Framework/include/MotionState.h                |   19 +++
+ Framework/include/QuadraticStateTransform.h    |   27 ++++
+ Framework/include/Walking.h                    |   21 +++
+ Framework/src/math/MotionState.cpp             |   25 ++++
+ Framework/src/math/QuadraticStateTransform.cpp |   97 +++++++++++++
+ Framework/src/motion/modules/Walking.cpp       |  183 +++++++++++++++++++++---
+ Linux/build/Makefile                           |    2 +
+ Linux/project/walk_tuner/cmd_process.cpp       |  132 ++++++++++++++++-
+ Linux/project/walk_tuner/cmd_process.h         |    6 +
+ 10 files changed, 522 insertions(+), 32 deletions(-)
  create mode 100644 Framework/include/MotionState.h
  create mode 100644 Framework/include/QuadraticStateTransform.h
  create mode 100644 Framework/src/math/MotionState.cpp
@@ -92,7 +92,7 @@ index 0e01195..619cfac 100644
 +acc_gain=0.010000
 diff --git a/Framework/include/MotionState.h b/Framework/include/MotionState.h
 new file mode 100644
-index 0000000..2586617
+index 0000000..c923fc0
 --- /dev/null
 +++ b/Framework/include/MotionState.h
 @@ -0,0 +1,19 @@
@@ -117,7 +117,7 @@ index 0000000..2586617
 +#endif /* MOTIONSTATE_H_ */
 diff --git a/Framework/include/QuadraticStateTransform.h b/Framework/include/QuadraticStateTransform.h
 new file mode 100644
-index 0000000..57da9d8
+index 0000000..8ffda37
 --- /dev/null
 +++ b/Framework/include/QuadraticStateTransform.h
 @@ -0,0 +1,27 @@
@@ -149,7 +149,7 @@ index 0000000..57da9d8
 +
 +#endif // QUADRATICSTATETRANSFORM_H_
 diff --git a/Framework/include/Walking.h b/Framework/include/Walking.h
-index 1c6ef34..bd7760a 100644
+index 1c6ef34..c09ae1d 100644
 --- a/Framework/include/Walking.h
 +++ b/Framework/include/Walking.h
 @@ -75,6 +75,7 @@ namespace Robot
@@ -216,7 +216,7 @@ index 1c6ef34..bd7760a 100644
  		int    D_GAIN;
 diff --git a/Framework/src/math/MotionState.cpp b/Framework/src/math/MotionState.cpp
 new file mode 100644
-index 0000000..4bae7cc
+index 0000000..ee0b32d
 --- /dev/null
 +++ b/Framework/src/math/MotionState.cpp
 @@ -0,0 +1,25 @@
@@ -247,7 +247,7 @@ index 0000000..4bae7cc
 +
 diff --git a/Framework/src/math/QuadraticStateTransform.cpp b/Framework/src/math/QuadraticStateTransform.cpp
 new file mode 100644
-index 0000000..00ef967
+index 0000000..dfedcf4
 --- /dev/null
 +++ b/Framework/src/math/QuadraticStateTransform.cpp
 @@ -0,0 +1,97 @@
@@ -349,7 +349,7 @@ index 0000000..00ef967
 +	st.v += st.a*t;
 +}
 diff --git a/Framework/src/motion/modules/Walking.cpp b/Framework/src/motion/modules/Walking.cpp
-index 6431b55..a75c199 100644
+index afbddf4..06c805e 100644
 --- a/Framework/src/motion/modules/Walking.cpp
 +++ b/Framework/src/motion/modules/Walking.cpp
 @@ -6,15 +6,18 @@
@@ -693,7 +693,7 @@ index 6431b55..a75c199 100644
 +    return offset;
  }
 diff --git a/Linux/build/Makefile b/Linux/build/Makefile
-index 923526f..2a1e0a9 100644
+index 65a041f..0523b8b 100644
 --- a/Linux/build/Makefile
 +++ b/Linux/build/Makefile
 @@ -24,6 +24,8 @@ OBJS =  ../../Framework/src/CM730.o     	\
@@ -706,7 +706,7 @@ index 923526f..2a1e0a9 100644
          ../../Framework/src/motion/Kinematics.o 	\
          ../../Framework/src/motion/MotionManager.o  \
 diff --git a/Linux/project/walk_tuner/cmd_process.cpp b/Linux/project/walk_tuner/cmd_process.cpp
-index f32609b..971378d 100644
+index a8f88c7..a6c9b43 100644
 --- a/Linux/project/walk_tuner/cmd_process.cpp
 +++ b/Linux/project/walk_tuner/cmd_process.cpp
 @@ -66,7 +66,7 @@ void set_stdin(void)
@@ -718,7 +718,7 @@ index f32609b..971378d 100644
  	new_term.c_cc[VMIN] = 1;
  	new_term.c_cc[VTIME] = 0;
  	tcsetattr(0, TCSANOW, &new_term);
-@@ -223,9 +223,16 @@ void DrawScreen()
+@@ -223,9 +223,15 @@ void DrawScreen()
  	printf("Balance ankle pitch gain  \n"); // 2
  	printf("Balance hip roll gain     \n"); // 3
  	printf("Balance ankle roll gain   \n"); // 4
@@ -731,11 +731,10 @@ index f32609b..971378d 100644
 +    printf("Lean FB accel gain        \n");
 +    printf("Lean Turn gain            \n");
 +    printf("Start step factor         \n");
-+    printf("SSP hold factor           \n");
      ClearCmd(); // 8
  
  	GoToCursor(PARAM_COL, WALKING_MODE_ROW);
-@@ -312,6 +319,12 @@ void DrawScreen()
+@@ -312,6 +318,12 @@ void DrawScreen()
  	GoToCursor(PARAM_COL, BAL_ANKLE_ROLL_GAIN_ROW);
  	printf("%.2f    ", Walking::GetInstance()->BALANCE_ANKLE_ROLL_GAIN);
  
@@ -748,7 +747,7 @@ index f32609b..971378d 100644
      GoToCursor(PARAM_COL, P_GAIN_ROW);
      printf("%d    ", Walking::GetInstance()->P_GAIN);
  
-@@ -321,6 +334,21 @@ void DrawScreen()
+@@ -321,6 +333,18 @@ void DrawScreen()
      GoToCursor(PARAM_COL, D_GAIN_ROW);
      printf("%d    ", Walking::GetInstance()->D_GAIN);
  
@@ -764,13 +763,10 @@ index f32609b..971378d 100644
 +    GoToCursor(PARAM_COL, START_STEP_FACTOR_ROW);
 +    printf("%.2f    ", Walking::GetInstance()->START_STEP_FACTOR);
 +
-+    GoToCursor(PARAM_COL, SSP_HOLD_FACTOR_ROW);
-+    printf("%.2f    ", Walking::GetInstance()->SSP_HOLD_FACTOR);
-+
  	GoToCursor(old_col, old_row);
  }
  
-@@ -555,6 +583,22 @@ void IncreaseValue(bool large)
+@@ -555,6 +579,22 @@ void IncreaseValue(bool large)
  		printf("%.2f    ", Walking::GetInstance()->BALANCE_ANKLE_ROLL_GAIN);
  		break;
  
@@ -793,7 +789,7 @@ index f32609b..971378d 100644
      case P_GAIN_ROW:
          if(large == true)
              Walking::GetInstance()->P_GAIN += 10;
-@@ -578,9 +622,49 @@ void IncreaseValue(bool large)
+@@ -578,9 +618,41 @@ void IncreaseValue(bool large)
              Walking::GetInstance()->D_GAIN += 1;
          printf("%d    ", Walking::GetInstance()->D_GAIN);
          break;
@@ -831,21 +827,13 @@ index f32609b..971378d 100644
 +            Walking::GetInstance()->START_STEP_FACTOR += 0.01;
 +        printf("%.2f  ", Walking::GetInstance()->START_STEP_FACTOR);
 +        break;
-+
-+    case SSP_HOLD_FACTOR_ROW:
-+        if(large)
-+            Walking::GetInstance()->SSP_HOLD_FACTOR += 0.1;
-+        else
-+            Walking::GetInstance()->SSP_HOLD_FACTOR += 0.01;
-+        printf("%.2f  ", Walking::GetInstance()->SSP_HOLD_FACTOR);
-+        break;
 +    }
 +
 +    GoToCursor(col, row);
  }
  
  void DecreaseValue(bool large)
-@@ -806,6 +890,22 @@ void DecreaseValue(bool large)
+@@ -806,6 +878,22 @@ void DecreaseValue(bool large)
  		printf("%.2f    ", Walking::GetInstance()->BALANCE_ANKLE_ROLL_GAIN);
  		break;
  
@@ -868,7 +856,7 @@ index f32609b..971378d 100644
  	case P_GAIN_ROW:
  	    if(large == true)
  	        Walking::GetInstance()->P_GAIN -= 10;
-@@ -829,9 +929,49 @@ void DecreaseValue(bool large)
+@@ -829,9 +917,41 @@ void DecreaseValue(bool large)
              Walking::GetInstance()->D_GAIN -= 1;
          printf("%d    ", Walking::GetInstance()->D_GAIN);
          break;
@@ -907,14 +895,6 @@ index f32609b..971378d 100644
 +            Walking::GetInstance()->START_STEP_FACTOR -= 0.01;
 +        printf("%.2f  ", Walking::GetInstance()->START_STEP_FACTOR);
 +        break;
-+
-+    case SSP_HOLD_FACTOR_ROW:
-+        if(large)
-+            Walking::GetInstance()->SSP_HOLD_FACTOR -= 0.1;
-+        else
-+            Walking::GetInstance()->SSP_HOLD_FACTOR -= 0.01;
-+        printf("%.2f  ", Walking::GetInstance()->SSP_HOLD_FACTOR);
-+        break;
 +    }
 +
 +    GoToCursor(col, row);
@@ -922,10 +902,10 @@ index f32609b..971378d 100644
  
  void BeginCommandMode()
 diff --git a/Linux/project/walk_tuner/cmd_process.h b/Linux/project/walk_tuner/cmd_process.h
-index 7cb540c..2c499a5 100644
+index 7cb540c..7de6bdd 100644
 --- a/Linux/project/walk_tuner/cmd_process.h
 +++ b/Linux/project/walk_tuner/cmd_process.h
-@@ -39,9 +39,16 @@ enum {
+@@ -39,9 +39,15 @@ enum {
      BAL_ANKLE_PITCH_GAIN_ROW,
      BAL_HIP_ROLL_GAIN_ROW,
      BAL_ANKLE_ROLL_GAIN_ROW,
@@ -938,10 +918,9 @@ index 7cb540c..2c499a5 100644
 +    LEAN_FB_ACCEL_ROW,
 +    LEAN_TURN_ROW,
 +    START_STEP_FACTOR_ROW,
-+    SSP_HOLD_FACTOR_ROW,
      CMD_ROW,
      SCREEN_ROW
  };
 -- 
-1.7.11.7
+1.7.10.4
 

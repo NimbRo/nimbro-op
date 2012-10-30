@@ -1,19 +1,19 @@
-From 34fff4a69f05521b8429b98f5e04bc4811114b5f Mon Sep 17 00:00:00 2001
+From 6388f8dd4d1ade4f1b2818b603c8c818a02eaacf Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:35:19 +0200
-Subject: [PATCH 24/26] ActionEditor: added fuction to apply mirrored pages
+Subject: [PATCH 24/25] ActionEditor: added fuction to apply mirrored pages
 
 Signed-off-by: sebastian <sebastian>
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@174 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Linux/project/action_editor/cmd_process.cpp | 39 ++++++++++++++++++++++++++++-
- Linux/project/action_editor/cmd_process.h   |  1 +
- Linux/project/action_editor/main.cpp        |  2 ++
+ Linux/project/action_editor/cmd_process.cpp |   39 ++++++++++++++++++++++++++-
+ Linux/project/action_editor/cmd_process.h   |    1 +
+ Linux/project/action_editor/main.cpp        |    2 ++
  3 files changed, 41 insertions(+), 1 deletion(-)
 
 diff --git a/Linux/project/action_editor/cmd_process.cpp b/Linux/project/action_editor/cmd_process.cpp
-index b5f92ad..ba9c96d 100644
+index e3baf87..525a7c5 100644
 --- a/Linux/project/action_editor/cmd_process.cpp
 +++ b/Linux/project/action_editor/cmd_process.cpp
 @@ -68,7 +68,7 @@ void set_stdin(void)
@@ -70,7 +70,7 @@ index b5f92ad..ba9c96d 100644
  {
  	Action::GetInstance()->ResetPage(&Page);
 diff --git a/Linux/project/action_editor/cmd_process.h b/Linux/project/action_editor/cmd_process.h
-index 703f19a..531f3fc 100644
+index 703f19a..d7666d7 100644
 --- a/Linux/project/action_editor/cmd_process.h
 +++ b/Linux/project/action_editor/cmd_process.h
 @@ -109,5 +109,6 @@ void NewCmd();
@@ -81,7 +81,7 @@ index 703f19a..531f3fc 100644
  
  #endif
 diff --git a/Linux/project/action_editor/main.cpp b/Linux/project/action_editor/main.cpp
-index 093a9d3..5b8a0bd 100644
+index 2633faf..3c0cafb 100644
 --- a/Linux/project/action_editor/main.cpp
 +++ b/Linux/project/action_editor/main.cpp
 @@ -269,6 +269,8 @@ int main(int argc, char *argv[])
@@ -94,5 +94,5 @@ index 093a9d3..5b8a0bd 100644
                          PrintCmd("Bad command! please input 'help'");
                  }
 -- 
-1.7.11.7
+1.7.10.4
 

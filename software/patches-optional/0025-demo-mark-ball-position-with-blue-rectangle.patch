@@ -1,14 +1,14 @@
-From f7cd7cd1bba87595e9736a8e1dad60c5fadc724b Mon Sep 17 00:00:00 2001
+From 99cced4d8b78f6a39249965b085c476d4672af2a Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:35:40 +0200
-Subject: [PATCH 25/26] demo: mark ball position with blue rectangle
+Subject: [PATCH 25/25] demo: mark ball position with blue rectangle
 
 ---
- Linux/project/demo/main.cpp | 18 ++++++++++++++++++
+ Linux/project/demo/main.cpp |   18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
 
 diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
-index d7c7b91..20b9e00 100644
+index 94d790b..77330a0 100644
 --- a/Linux/project/demo/main.cpp
 +++ b/Linux/project/demo/main.cpp
 @@ -247,6 +247,24 @@ int main(void)
@@ -37,5 +37,5 @@ index d7c7b91..20b9e00 100644
  
          if(StatusCheck::m_is_started == 0)
 -- 
-1.7.11.7
+1.7.10.4
 

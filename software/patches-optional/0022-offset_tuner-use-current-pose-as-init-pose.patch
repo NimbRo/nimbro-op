@@ -1,15 +1,15 @@
-From 91c12756e6cee8a5d0f8dd7d6907833c720d3493 Mon Sep 17 00:00:00 2001
+From 5e8c233739107317effeb2a25ea91134279bb924 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:33:49 +0200
-Subject: [PATCH 22/26] offset_tuner: use current pose as init pose
+Subject: [PATCH 22/25] offset_tuner: use current pose as init pose
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@191 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- Linux/project/offset_tuner/cmd_process.cpp | 41 +++++++++++++++++-------------
+ Linux/project/offset_tuner/cmd_process.cpp |   41 ++++++++++++++++------------
  1 file changed, 23 insertions(+), 18 deletions(-)
 
 diff --git a/Linux/project/offset_tuner/cmd_process.cpp b/Linux/project/offset_tuner/cmd_process.cpp
-index eb5c659..6f3e966 100644
+index 61f7d40..ddfa5ca 100644
 --- a/Linux/project/offset_tuner/cmd_process.cpp
 +++ b/Linux/project/offset_tuner/cmd_process.cpp
 @@ -246,28 +246,33 @@ void DrawIntro(CM730 *cm730)
@@ -44,13 +44,13 @@ index eb5c659..6f3e966 100644
 -            wDistance = wStartPosition - wGoalPosition;
 -        else
 -            wDistance = wGoalPosition - wStartPosition;
-+        int value;
-+        cm730->ReadWord(id, MX28::P_GOAL_POSITION_L, &value, 0);
- 
+-
 -        wDistance >>= 3;
 -        if( wDistance < 8 )
 -            wDistance = 8;
--
++        int value;
++        cm730->ReadWord(id, MX28::P_GOAL_POSITION_L, &value, 0);
+ 
 -        param[n++] = id;
 -        param[n++] = CM730::GetLowByte(wGoalPosition);
 -        param[n++] = CM730::GetHighByte(wGoalPosition);
@@ -65,5 +65,5 @@ index eb5c659..6f3e966 100644
      setupterm(NULL, fileno(stdout), (int *)0);
      nrows = tigetnum("lines");
 -- 
-1.7.11.7
+1.7.10.4
 

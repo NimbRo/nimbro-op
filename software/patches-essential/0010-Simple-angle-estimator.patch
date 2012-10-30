@@ -1,18 +1,18 @@
-From afa1f25020706b592915fc2ef4e2f92676f4d5fa Mon Sep 17 00:00:00 2001
+From 3a29e0ea7671926d79c3e41b430b2701726e3dd9 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:14:58 +0200
-Subject: [PATCH 10/26] Simple angle estimator
+Subject: [PATCH 10/25] Simple angle estimator
 
 Uses a fused value from accelerometer angle estimation and gyro velocities.
 ---
- Framework/include/AngleEstimator.h      | 51 +++++++++++++++++++++++++++++++++
- Framework/include/MotionManager.h       |  6 ++++
- Framework/include/MotionStatus.h        |  7 +++--
- Framework/src/motion/AngleEstimator.cpp | 51 +++++++++++++++++++++++++++++++++
- Framework/src/motion/MotionManager.cpp  | 29 +++++++++++++++++--
- Framework/src/motion/MotionStatus.cpp   |  7 +++--
- Linux/build/Makefile                    |  1 +
- Linux/project/walk_tuner/main.cpp       |  2 ++
+ Framework/include/AngleEstimator.h      |   51 +++++++++++++++++++++++++++++++
+ Framework/include/MotionManager.h       |    6 ++++
+ Framework/include/MotionStatus.h        |    7 +++--
+ Framework/src/motion/AngleEstimator.cpp |   51 +++++++++++++++++++++++++++++++
+ Framework/src/motion/MotionManager.cpp  |   29 ++++++++++++++++--
+ Framework/src/motion/MotionStatus.cpp   |    7 +++--
+ Linux/build/Makefile                    |    1 +
+ Linux/project/walk_tuner/main.cpp       |    2 ++
  8 files changed, 148 insertions(+), 6 deletions(-)
  create mode 100644 Framework/include/AngleEstimator.h
  create mode 100644 Framework/src/motion/AngleEstimator.cpp
@@ -75,7 +75,7 @@ index 0000000..e158c9d
 +
 +#endif
 diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
-index 3419f79..3c7a9fe 100644
+index 8eca086..dfd90b6 100644
 --- a/Framework/include/MotionManager.h
 +++ b/Framework/include/MotionManager.h
 @@ -15,6 +15,7 @@
@@ -106,7 +106,7 @@ index 3419f79..3c7a9fe 100644
  }
  
 diff --git a/Framework/include/MotionStatus.h b/Framework/include/MotionStatus.h
-index a13bc67..626f34c 100644
+index a13bc67..64671ec 100644
 --- a/Framework/include/MotionStatus.h
 +++ b/Framework/include/MotionStatus.h
 @@ -29,11 +29,14 @@ namespace Robot
@@ -184,7 +184,7 @@ index 0000000..ae22825
 +	ini->put(section, "acc_gain", m_acc_gain);
 +}
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index dd2d0c0..de89ebd 100644
+index 0309f2e..0c369d2 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -186,6 +186,8 @@ void MotionManager::LoadINISettings(minIni* ini, const std::string &section)
@@ -242,7 +242,7 @@ index dd2d0c0..de89ebd 100644
  
          int sum = 0, avr = 512;
 diff --git a/Framework/src/motion/MotionStatus.cpp b/Framework/src/motion/MotionStatus.cpp
-index ece9338..7a0f827 100644
+index ece9338..3805517 100644
 --- a/Framework/src/motion/MotionStatus.cpp
 +++ b/Framework/src/motion/MotionStatus.cpp
 @@ -10,10 +10,13 @@
@@ -262,7 +262,7 @@ index ece9338..7a0f827 100644
 +double MotionStatus::ANGLE_PITCH(0);
 +double MotionStatus::ANGLE_ROLL(0);
 diff --git a/Linux/build/Makefile b/Linux/build/Makefile
-index b608861..923526f 100644
+index b608861..65a041f 100644
 --- a/Linux/build/Makefile
 +++ b/Linux/build/Makefile
 @@ -28,6 +28,7 @@ OBJS =  ../../Framework/src/CM730.o     	\
@@ -274,7 +274,7 @@ index b608861..923526f 100644
          ../../Framework/src/motion/modules/Head.o   \
          ../../Framework/src/motion/modules/Walking.o\
 diff --git a/Linux/project/walk_tuner/main.cpp b/Linux/project/walk_tuner/main.cpp
-index 807acca..b18fec8 100644
+index d53faf8..a608171 100644
 --- a/Linux/project/walk_tuner/main.cpp
 +++ b/Linux/project/walk_tuner/main.cpp
 @@ -67,6 +67,8 @@ int main(int argc, char *argv[])
@@ -287,5 +287,5 @@ index 807acca..b18fec8 100644
      {
          int ch = _getch();
 -- 
-1.7.11.7
+1.7.10.4
 

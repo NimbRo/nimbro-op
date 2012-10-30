@@ -1,20 +1,20 @@
-From 414288f904e41d5740fc508274890670bda7712e Mon Sep 17 00:00:00 2001
+From 7538d434f6e5688bdadbfa3d788a974c07fefcba Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 13:17:20 +0200
-Subject: [PATCH 07/26] MotionManager: torque management
+Subject: [PATCH 07/25] MotionManager: torque management
 
 Changes:
  - fade in torque on startup
  - include torque adaption to battery voltage
    improves the tuning situation.
 ---
- Framework/include/MotionManager.h      | 13 +++++-
- Framework/src/motion/MotionManager.cpp | 79 ++++++++++++++++++++++++++++++----
- Linux/project/offset_tuner/main.cpp    |  2 +-
+ Framework/include/MotionManager.h      |   13 +++++-
+ Framework/src/motion/MotionManager.cpp |   79 ++++++++++++++++++++++++++++----
+ Linux/project/offset_tuner/main.cpp    |    2 +-
  3 files changed, 83 insertions(+), 11 deletions(-)
 
 diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
-index 0ab145e..3419f79 100644
+index 3e4f810..8eca086 100644
 --- a/Framework/include/MotionManager.h
 +++ b/Framework/include/MotionManager.h
 @@ -38,22 +38,31 @@ namespace Robot
@@ -52,7 +52,7 @@ index 0ab145e..3419f79 100644
          void Process();
  		void SetEnable(bool enable);
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index ff1dbc9..dd2d0c0 100644
+index b6f5b45..0309f2e 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -11,9 +11,16 @@
@@ -215,7 +215,7 @@ index ff1dbc9..dd2d0c0 100644
 +    m_CM730->WriteWord(CM730::ID_BROADCAST, MX28::P_TORQUE_LIMIT_L, torque, 0);
  }
 diff --git a/Linux/project/offset_tuner/main.cpp b/Linux/project/offset_tuner/main.cpp
-index 8d4701d..2d9adbc 100644
+index 8d4701d..49995b6 100644
 --- a/Linux/project/offset_tuner/main.cpp
 +++ b/Linux/project/offset_tuner/main.cpp
 @@ -78,7 +78,7 @@ int main(int argc, char *argv[])
@@ -228,5 +228,5 @@ index 8d4701d..2d9adbc 100644
          printf("Initializing Motion Manager failed!\n");
          return 0;
 -- 
-1.7.11.7
+1.7.10.4
 

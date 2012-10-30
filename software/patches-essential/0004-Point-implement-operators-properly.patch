@@ -1,15 +1,15 @@
-From 1fe69027f1aa5989308a1fef3de76a56453a1e8a Mon Sep 17 00:00:00 2001
+From 3858772da546ecd5d8c6576f64d31272b5bd0d3f Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:07:12 +0200
-Subject: [PATCH 04/26] Point: implement operators properly
+Subject: [PATCH 04/25] Point: implement operators properly
 
 ---
- Framework/include/Point.h    | 18 +++++++++---------
- Framework/src/math/Point.cpp | 18 +++++++++---------
+ Framework/include/Point.h    |   18 +++++++++---------
+ Framework/src/math/Point.cpp |   18 +++++++++---------
  2 files changed, 18 insertions(+), 18 deletions(-)
 
 diff --git a/Framework/include/Point.h b/Framework/include/Point.h
-index ce94aab..f544c6d 100644
+index ce94aab..45be75b 100644
 --- a/Framework/include/Point.h
 +++ b/Framework/include/Point.h
 @@ -28,19 +28,19 @@ namespace Robot
@@ -42,7 +42,7 @@ index ce94aab..f544c6d 100644
  
  	class Point3D
 diff --git a/Framework/src/math/Point.cpp b/Framework/src/math/Point.cpp
-index 99fdf09..29526bf 100644
+index 99fdf09..6050c45 100644
 --- a/Framework/src/math/Point.cpp
 +++ b/Framework/src/math/Point.cpp
 @@ -40,21 +40,21 @@ double Point2D::Distance(Point2D &pt1, Point2D &pt2)
@@ -110,5 +110,5 @@ index 99fdf09..29526bf 100644
  	return Point2D(X / value, Y / value);
  }
 -- 
-1.7.11.7
+1.7.10.4
 

@@ -1,16 +1,16 @@
-From c810012ff7ab5d54baa6d8a738cba8407e169370 Mon Sep 17 00:00:00 2001
+From 4c94c8cc197197e48798776b7f7aefe70c1df4a8 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:26:22 +0200
-Subject: [PATCH 15/26] BallTracker: Added Offset to fix Ball position
+Subject: [PATCH 15/25] BallTracker: Added Offset to fix Ball position
 
 ---
- Framework/include/BallTracker.h      |  4 +++-
- Framework/src/vision/BallTracker.cpp | 19 +++++++++++++++++++
- Linux/project/demo/main.cpp          |  2 ++
+ Framework/include/BallTracker.h      |    4 +++-
+ Framework/src/vision/BallTracker.cpp |   19 +++++++++++++++++++
+ Linux/project/demo/main.cpp          |    2 ++
  3 files changed, 24 insertions(+), 1 deletion(-)
 
 diff --git a/Framework/include/BallTracker.h b/Framework/include/BallTracker.h
-index a38dbd3..ffb5dea 100644
+index a38dbd3..2a1a253 100644
 --- a/Framework/include/BallTracker.h
 +++ b/Framework/include/BallTracker.h
 @@ -20,13 +20,15 @@ namespace Robot
@@ -31,7 +31,7 @@ index a38dbd3..ffb5dea 100644
  	};
  }
 diff --git a/Framework/src/vision/BallTracker.cpp b/Framework/src/vision/BallTracker.cpp
-index c2bd8b3..a996fb1 100644
+index 7099856..1a497f5 100644
 --- a/Framework/src/vision/BallTracker.cpp
 +++ b/Framework/src/vision/BallTracker.cpp
 @@ -18,6 +18,8 @@ BallTracker::BallTracker() :
@@ -68,7 +68,7 @@ index c2bd8b3..a996fb1 100644
 +	m_offsetConfig = true;
 +}
 diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
-index 2f34a15..7745558 100644
+index f453bc4..62b0fa9 100644
 --- a/Linux/project/demo/main.cpp
 +++ b/Linux/project/demo/main.cpp
 @@ -278,6 +278,8 @@ int main(void)
@@ -81,5 +81,5 @@ index 2f34a15..7745558 100644
  
                      sleep(1);
 -- 
-1.7.11.7
+1.7.10.4
 

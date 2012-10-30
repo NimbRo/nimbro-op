@@ -1,11 +1,11 @@
-From cae0032339b1331b9e9720da2a8bfc08e3892ecb Mon Sep 17 00:00:00 2001
+From d7442a609987f1b57467110f974b44ffdcbfce3d Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:05:26 +0200
-Subject: [PATCH 02/26] added deploy script
+Subject: [PATCH 02/25] added deploy script
 
 git-svn-id: https://svn.ais.uni-bonn.de/svn/tsop/trunk@140 1b4782f9-c6b1-4fad-9a30-e804c95d81e5
 ---
- deploy.sh | 16 ++++++++++++++++
+ deploy.sh |   16 ++++++++++++++++
  1 file changed, 16 insertions(+)
  create mode 100755 deploy.sh
 
@@ -33,5 +33,5 @@ index 0000000..2c85d87
 +$CMD
 \ No newline at end of file
 -- 
-1.7.11.7
+1.7.10.4
 

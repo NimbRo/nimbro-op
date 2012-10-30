@@ -1,19 +1,19 @@
-From a1e1f1443eca5d83980149609eeb60bb7e97ec94 Mon Sep 17 00:00:00 2001
+From 98469fbc9a0aa32b1d145bb6f8a792e0c98ec003 Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:27:54 +0200
-Subject: [PATCH 16/26] Fall protection implementation
+Subject: [PATCH 16/25] Fall protection implementation
 
 ---
- Framework/include/MotionManager.h      |  14 ++-
- Framework/include/MotionStatus.h       |  22 ++++-
- Framework/src/motion/MotionManager.cpp | 172 ++++++++++++++++++++++++---------
- Framework/src/motion/MotionStatus.cpp  |   3 +-
- Linux/project/demo/StatusCheck.cpp     |  67 ++++++++++---
- Linux/project/demo/main.cpp            |   4 +-
+ Framework/include/MotionManager.h      |   14 ++-
+ Framework/include/MotionStatus.h       |   22 +++-
+ Framework/src/motion/MotionManager.cpp |  172 ++++++++++++++++++++++++--------
+ Framework/src/motion/MotionStatus.cpp  |    3 +-
+ Linux/project/demo/StatusCheck.cpp     |   67 ++++++++++---
+ Linux/project/demo/main.cpp            |    4 +-
  6 files changed, 215 insertions(+), 67 deletions(-)
 
 diff --git a/Framework/include/MotionManager.h b/Framework/include/MotionManager.h
-index 3c7a9fe..b262097 100644
+index dfd90b6..71aebd5 100644
 --- a/Framework/include/MotionManager.h
 +++ b/Framework/include/MotionManager.h
 @@ -20,6 +20,7 @@
@@ -52,7 +52,7 @@ index 3c7a9fe..b262097 100644
  }
  
 diff --git a/Framework/include/MotionStatus.h b/Framework/include/MotionStatus.h
-index 626f34c..60147df 100644
+index 64671ec..440975c 100644
 --- a/Framework/include/MotionStatus.h
 +++ b/Framework/include/MotionStatus.h
 @@ -13,10 +13,21 @@
@@ -92,7 +92,7 @@ index 626f34c..60147df 100644
  }
  
 diff --git a/Framework/src/motion/MotionManager.cpp b/Framework/src/motion/MotionManager.cpp
-index de89ebd..9df97d3 100644
+index 0c369d2..5641641 100644
 --- a/Framework/src/motion/MotionManager.cpp
 +++ b/Framework/src/motion/MotionManager.cpp
 @@ -32,8 +32,13 @@ MotionManager::MotionManager() :
@@ -176,12 +176,12 @@ index de89ebd..9df97d3 100644
              MotionStatus::ANGLE_PITCH = m_angleEstimator.pitch();
              MotionStatus::ANGLE_ROLL  = m_angleEstimator.roll();
 -        }
--
+ 
 -        int sum = 0, avr = 512;
 -        for(int idx = 0; idx < ACCEL_WINDOW_SIZE; idx++)
 -            sum += fb_array[idx];
 -        avr = sum / ACCEL_WINDOW_SIZE;
- 
+-
 -        if(avr < MotionStatus::FALLEN_F_LIMIT)
 -            MotionStatus::FALLEN = FORWARD;
 -        else if(avr > MotionStatus::FALLEN_B_LIMIT)
@@ -358,7 +358,7 @@ index de89ebd..9df97d3 100644
 +    }
 +}
 diff --git a/Framework/src/motion/MotionStatus.cpp b/Framework/src/motion/MotionStatus.cpp
-index 7a0f827..a3847e7 100644
+index 3805517..6a0548e 100644
 --- a/Framework/src/motion/MotionStatus.cpp
 +++ b/Framework/src/motion/MotionStatus.cpp
 @@ -16,7 +16,8 @@ int MotionStatus::FB_ACCEL(0);
@@ -372,7 +372,7 @@ index 7a0f827..a3847e7 100644
  double MotionStatus::ANGLE_PITCH(0);
  double MotionStatus::ANGLE_ROLL(0);
 diff --git a/Linux/project/demo/StatusCheck.cpp b/Linux/project/demo/StatusCheck.cpp
-index 0990a20..df5e859 100644
+index 5312365..0ae44dc 100644
 --- a/Linux/project/demo/StatusCheck.cpp
 +++ b/Linux/project/demo/StatusCheck.cpp
 @@ -24,22 +24,59 @@ int StatusCheck::m_is_started   = 0;
@@ -451,7 +451,7 @@ index 0990a20..df5e859 100644
  
      if(m_old_btn == MotionStatus::BUTTON)
 diff --git a/Linux/project/demo/main.cpp b/Linux/project/demo/main.cpp
-index 7745558..a91ca59 100644
+index 62b0fa9..38c8e2f 100644
 --- a/Linux/project/demo/main.cpp
 +++ b/Linux/project/demo/main.cpp
 @@ -102,6 +102,8 @@ int main(void)
@@ -473,5 +473,5 @@ index 7745558..a91ca59 100644
                  Head::GetInstance()->m_Joint.SetEnableHeadOnly(true, true);
                  Walking::GetInstance()->m_Joint.SetEnableBodyWithoutHead(true, true);
 -- 
-1.7.11.7
+1.7.10.4
 

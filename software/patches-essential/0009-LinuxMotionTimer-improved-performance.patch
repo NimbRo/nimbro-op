@@ -1,17 +1,17 @@
-From 4585617240ffea786c08fb91c3bf28ad0334cb79 Mon Sep 17 00:00:00 2001
+From 2914f621fd130796d7d0e463f6fd039b878bc12b Mon Sep 17 00:00:00 2001
 From: sebastian <sebastian>
 Date: Fri, 12 Oct 2012 12:13:39 +0200
-Subject: [PATCH 09/26] LinuxMotionTimer: improved performance
+Subject: [PATCH 09/25] LinuxMotionTimer: improved performance
 
 Changes:
  - do not try to catch up on missed cycles
  - use RT I/O priority (fixes lags)
 ---
- Linux/build/LinuxMotionTimer.cpp | 62 +++++++++++++++++++++++++++++++++++++---
+ Linux/build/LinuxMotionTimer.cpp |   62 +++++++++++++++++++++++++++++++++++---
  1 file changed, 58 insertions(+), 4 deletions(-)
 
 diff --git a/Linux/build/LinuxMotionTimer.cpp b/Linux/build/LinuxMotionTimer.cpp
-index 2245171..9d1dbe8 100644
+index 067e042..873bd09 100644
 --- a/Linux/build/LinuxMotionTimer.cpp
 +++ b/Linux/build/LinuxMotionTimer.cpp
 @@ -11,6 +11,50 @@
@@ -98,5 +98,5 @@ index 2245171..9d1dbe8 100644
      }
  
 -- 
-1.7.11.7
+1.7.10.4
 
